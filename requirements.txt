@@ -1,0 +1,11 @@
+nest-asyncio
+openai
+pydantic
+streamlit
+crawl4ai
+beautifulsoup4
+selenium
+extruct
+w3lib
+requests
+lxml
