@@ -8,7 +8,7 @@ from openai import OpenAI
 import extruct
 import requests
 from bs4 import BeautifulSoup
-from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode, LLMConfig, LLMExtractionStrategy, BrowserConfig
+from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode, LLMConfig, LLMExtractionStrategy
 from crawl4ai import JsonCssExtractionStrategy
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -18,36 +18,49 @@ from pydantic import BaseModel, Field
 class Product(BaseModel):
     title: str
     price: str
-    short_description: str
-    long_description: str
-    availability: str = Field(..., description="sold, available or reserved")
+    currency: str
+    description: str
+    shop_item_id: str
+    shop_name: str
+    state: str = Field(..., description="sold, available or reserved")
     images: list[str]
 
 async def parse_schema(url: str, update_schema: bool = False):
     parsed_url = urlparse(url)
     base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
-    schema_prompt = """Give me the schema of the product so i can give it to the library. I need title, price, short_description, long_description, availability(sold, reserved, available) and the images. Do not hallucinate! Here an example:
-
-     schema = {
-            "name": "Crypto Prices",
-            "baseSelector": "div.crypto-row",    # Repeated elements
-            "fields": [
-                {
-                    "name": "coin_name",
-                    "selector": "h2.coin-name",
-                    "type": "text"
-                },
-                {
-                    "name": "price",
-                    "selector": "span.coin-price",
-                    "type": "text"
-                }
-            ]
+    schema_prompt = """
+         I need just this attributes and use exactly this names for the attributes: shop_item_id (Art.Nr), shop_name 
+         (The name of the shop that sales the product), title, current_price, currency, description (the longest 
+         description found), state (LISTED: Item has been listed, AVAILABLE: Item is available for purchase, RESERVED: 
+         Item is reserved by a buyer, SOLD: Item has been sold. REMOVED: Item has been removed  and can no longer be 
+         tracked) and the images of the product. Do not hallucinate!
+    """
+    target_schema = """{
+        "shopsItemId": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+        "shopName": "Tech Store",
+        "title": {
+            "text": "Smartphone Case Premium",
+            "language": "en"
+        },
+        "description": {
+            "text": "Premium quality smartphone case with wireless charging support",
+            "language": "en"
+        },
+        "price": {
+            "currency": "EUR",
+            "amount": 2999
+        },
+        "state": "AVAILABLE",
+        "images": [
+            "https://tech-store.com/images/premium-case-1.jpg",
+            "https://tech-store.com/images/premium-case-2.jpg"
+        ]
     }"""
 
-    if os.path.exists("streamlit/schema.json"):
-        with open("streamlit/schema.json", "r", encoding="utf-8") as f:
+    # TODO: Load existing schema from database instead of file
+    if os.path.exists("schema.json"):
+        with open("schema.json", "r", encoding="utf-8") as f:
             all_schemas = json.load(f)
     else:
         all_schemas = {}
@@ -61,6 +74,7 @@ async def parse_schema(url: str, update_schema: bool = False):
             query=schema_prompt,
             html=response.text,
             llm_config=LLMConfig(provider="deepseek/deepseek-chat", api_token=os.getenv("DEEPSEEK_API_KEY")),
+            target_json_example= target_schema
         )
         print("Generiertes Schema:", json.dumps(schema, indent=2))
         all_schemas[base_url] = {
@@ -120,10 +134,10 @@ async def clean_up_data(data):
     else:
         print("No usage info returned.")
 
-    COST_PER_INPUT = 0.14 / 1_000_000  # $ per token
-    COST_PER_OUTPUT = 0.28 / 1_000_000  # $ per token
+    cost_per_input = 0.14 / 1_000_000  # $ per token
+    cost_per_output = 0.28 / 1_000_000  # $ per token
 
-    cost = prompt_tokens * COST_PER_INPUT + completion_tokens * COST_PER_OUTPUT
+    cost = prompt_tokens * cost_per_input + completion_tokens * cost_per_output
     print(f"Estimated cost: ${cost:.6f}")
 
 async def parse_json_ld(url: str):

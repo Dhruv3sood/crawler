@@ -57,7 +57,29 @@ async def parse_schema(url: str, prompt:str, update_schema: bool = False):
             schema = JsonCssExtractionStrategy.generate_schema(
                 html=response.text,
                 llm_config=LLMConfig(provider="deepseek/deepseek-chat", api_token=os.getenv("DEEPSEEK_API_KEY")),
-                query=prompt
+                query=prompt,
+                target_json_example="""{
+                  "shopsItemId": "6ba7430c8",
+                  "shopName": "Tech Store",
+                  "title": {
+                    "text": "Smartphone Case Premium",
+                    "language": "en"
+                  },
+                  "description": {
+                    "text": "Premium quality smartphone case with wireless charging support",
+                    "language": "en"
+                  },
+                  "price": {
+                    "currency": "EUR",
+                    "amount": 2999
+                  },
+                  "state": "AVAILABLE",
+                  "url": "https://tech-store.com/premium-case",
+                  "images": [
+                    "https://tech-store.com/images/premium-case-1.jpg",
+                    "https://tech-store.com/images/premium-case-2.jpg"
+                  ]
+                }"""
             )
             print("Generated Schema:", json.dumps(schema, indent=2))
             all_schemas[base_url] = { "schema": { "CSS": schema } }
