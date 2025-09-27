@@ -30,33 +30,12 @@ async def parse_schema(url: str, update_schema: bool = False):
     base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
     schema_prompt = """
-         I need just this attributes and use exactly this names for the attributes: shop_item_id (Art.Nr), shop_name 
-         (The name of the shop that sales the product), title, current_price, currency, description (the longest 
+         I need just this attributes and use exactly this names for the attributes: shop_item_id (ID or Art.Nr of the product), shop_name 
+         (The name of the shop that sales the product), title, current_price (The selling price of the product), currency, description (the longest 
          description found), state (LISTED: Item has been listed, AVAILABLE: Item is available for purchase, RESERVED: 
          Item is reserved by a buyer, SOLD: Item has been sold. REMOVED: Item has been removed  and can no longer be 
-         tracked) and the images of the product. Do not hallucinate!
+         tracked) and image (image's url of the product). Do not hallucinate!
     """
-    target_schema = """{
-        "shopsItemId": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-        "shopName": "Tech Store",
-        "title": {
-            "text": "Smartphone Case Premium",
-            "language": "en"
-        },
-        "description": {
-            "text": "Premium quality smartphone case with wireless charging support",
-            "language": "en"
-        },
-        "price": {
-            "currency": "EUR",
-            "amount": 2999
-        },
-        "state": "AVAILABLE",
-        "images": [
-            "https://tech-store.com/images/premium-case-1.jpg",
-            "https://tech-store.com/images/premium-case-2.jpg"
-        ]
-    }"""
 
     # TODO: Load existing schema from database instead of file
     if os.path.exists("schema.json"):
@@ -69,20 +48,20 @@ async def parse_schema(url: str, update_schema: bool = False):
         schema = all_schemas[base_url]["schema"]["CSS"]
         print("Schema aus Datei geladen.")
     else:
-        response = requests.get(url)
-        schema = JsonCssExtractionStrategy.generate_schema(
-            query=schema_prompt,
-            html=response.text,
-            llm_config=LLMConfig(provider="deepseek/deepseek-chat", api_token=os.getenv("DEEPSEEK_API_KEY")),
-            target_json_example= target_schema
-        )
+        async with AsyncWebCrawler() as crawler:
+            response = await crawler.arun(url=url)
+            schema = JsonCssExtractionStrategy.generate_schema(
+                html=response.fit_html,
+                llm_config=LLMConfig(provider="deepseek/deepseek-chat", api_token=os.getenv("DEEPSEEK_API_KEY")),
+                query=schema_prompt
+            )
         print("Generiertes Schema:", json.dumps(schema, indent=2))
         all_schemas[base_url] = {
             "schema": {
                 "CSS": schema,
             }
         }
-        with open("streamlit/schema.json", "w", encoding="utf-8") as f:
+        with open("schema.json", "w", encoding="utf-8") as f:
             json.dump(all_schemas, f, ensure_ascii=False, indent=2)
 
     extraction_strategy = JsonCssExtractionStrategy(schema, verbose=True)
@@ -102,6 +81,7 @@ async def parse_schema(url: str, update_schema: bool = False):
             return
 
         data = json.loads(result.extracted_content)
+        print(data)
 
 
 
