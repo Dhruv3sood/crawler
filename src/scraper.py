@@ -30,11 +30,11 @@ async def parse_schema(url: str, update_schema: bool = False):
     base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
     schema_prompt = """
-         I need just this attributes and use exactly this names for the attributes: shop_item_id (ID or Art.Nr of the product), shop_name 
-         (The name of the shop that sales the product), title, current_price (The selling price of the product), currency, description (the longest 
-         description found), state (LISTED: Item has been listed, AVAILABLE: Item is available for purchase, RESERVED: 
-         Item is reserved by a buyer, SOLD: Item has been sold. REMOVED: Item has been removed  and can no longer be 
-         tracked) and image (image's url of the product). Do not hallucinate!
+         I need just this attributes and use exactly this names for the attributes: shop_item_id (ID or Art.Nr of the product)
+         , title, current_price (The selling price of the product), currency, description (the longest description found), 
+         state (LISTED: Item has been listed, AVAILABLE: Item is available for purchase, RESERVED: Item is reserved by a 
+         buyer, SOLD: Item has been sold. REMOVED: Item has been removed  and can no longer be tracked) and image (image's 
+         url of the product). Do not hallucinate!
     """
 
     # TODO: Load existing schema from database instead of file
