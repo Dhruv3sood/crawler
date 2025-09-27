@@ -8,7 +8,7 @@ from openai import OpenAI
 import extruct
 import requests
 from bs4 import BeautifulSoup
-from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode, LLMConfig, LLMExtractionStrategy, BrowserConfig
+from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode, LLMConfig, LLMExtractionStrategy
 from crawl4ai import JsonCssExtractionStrategy
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -18,36 +18,28 @@ from pydantic import BaseModel, Field
 class Product(BaseModel):
     title: str
     price: str
-    short_description: str
-    long_description: str
-    availability: str = Field(..., description="sold, available or reserved")
+    currency: str
+    description: str
+    shop_item_id: str
+    shop_name: str
+    state: str = Field(..., description="sold, available or reserved")
     images: list[str]
 
 async def parse_schema(url: str, update_schema: bool = False):
     parsed_url = urlparse(url)
     base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
 
-    schema_prompt = """Give me the schema of the product so i can give it to the library. I need title, price, short_description, long_description, availability(sold, reserved, available) and the images. Do not hallucinate! Here an example:
+    schema_prompt = """
+         I need just this attributes and use exactly this names for the attributes: shop_item_id (ID or Art.Nr of the product)
+         , title, current_price (The selling price of the product), currency, description (the longest description found), 
+         state (LISTED: Item has been listed, AVAILABLE: Item is available for purchase, RESERVED: Item is reserved by a 
+         buyer, SOLD: Item has been sold. REMOVED: Item has been removed  and can no longer be tracked) and image (image's 
+         url of the product). Do not hallucinate!
+    """
 
-     schema = {
-            "name": "Crypto Prices",
-            "baseSelector": "div.crypto-row",    # Repeated elements
-            "fields": [
-                {
-                    "name": "coin_name",
-                    "selector": "h2.coin-name",
-                    "type": "text"
-                },
-                {
-                    "name": "price",
-                    "selector": "span.coin-price",
-                    "type": "text"
-                }
-            ]
-    }"""
-
-    if os.path.exists("streamlit/schema.json"):
-        with open("streamlit/schema.json", "r", encoding="utf-8") as f:
+    # TODO: Load existing schema from database instead of file
+    if os.path.exists("schema.json"):
+        with open("schema.json", "r", encoding="utf-8") as f:
             all_schemas = json.load(f)
     else:
         all_schemas = {}
@@ -56,19 +48,20 @@ async def parse_schema(url: str, update_schema: bool = False):
         schema = all_schemas[base_url]["schema"]["CSS"]
         print("Schema aus Datei geladen.")
     else:
-        response = requests.get(url)
-        schema = JsonCssExtractionStrategy.generate_schema(
-            query=schema_prompt,
-            html=response.text,
-            llm_config=LLMConfig(provider="deepseek/deepseek-chat", api_token=os.getenv("DEEPSEEK_API_KEY")),
-        )
+        async with AsyncWebCrawler() as crawler:
+            response = await crawler.arun(url=url)
+            schema = JsonCssExtractionStrategy.generate_schema(
+                html=response.fit_html,
+                llm_config=LLMConfig(provider="deepseek/deepseek-chat", api_token=os.getenv("DEEPSEEK_API_KEY")),
+                query=schema_prompt
+            )
         print("Generiertes Schema:", json.dumps(schema, indent=2))
         all_schemas[base_url] = {
             "schema": {
                 "CSS": schema,
             }
         }
-        with open("streamlit/schema.json", "w", encoding="utf-8") as f:
+        with open("schema.json", "w", encoding="utf-8") as f:
             json.dump(all_schemas, f, ensure_ascii=False, indent=2)
 
     extraction_strategy = JsonCssExtractionStrategy(schema, verbose=True)
@@ -88,6 +81,7 @@ async def parse_schema(url: str, update_schema: bool = False):
             return
 
         data = json.loads(result.extracted_content)
+        print(data)
 
 
 
@@ -120,10 +114,10 @@ async def clean_up_data(data):
     else:
         print("No usage info returned.")
 
-    COST_PER_INPUT = 0.14 / 1_000_000  # $ per token
-    COST_PER_OUTPUT = 0.28 / 1_000_000  # $ per token
+    cost_per_input = 0.14 / 1_000_000  # $ per token
+    cost_per_output = 0.28 / 1_000_000  # $ per token
 
-    cost = prompt_tokens * COST_PER_INPUT + completion_tokens * COST_PER_OUTPUT
+    cost = prompt_tokens * cost_per_input + completion_tokens * cost_per_output
     print(f"Estimated cost: ${cost:.6f}")
 
 async def parse_json_ld(url: str):

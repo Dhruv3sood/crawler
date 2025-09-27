@@ -54,18 +54,8 @@ with st.container(border=True):
     selected_parsers = st.multiselect(
         "**Choose Extraction Methods** (in order of execution)",
         options=available_parsers,
-        default=["JSON-LD", "Microdata", "AI Schema (CSS)"] # Sensible defaults
+        default=[ "AI Schema (CSS)"] # Sensible defaults
     )
-
-    prompt = ""
-    # Only show the prompt input if the AI parser is selected
-    if "AI Schema (CSS)" in selected_parsers:
-        st.info("The 'AI Schema (CSS)' method requires a prompt and a `DEEPSEEK_API_KEY` environment variable.")
-        prompt = st.text_area(
-            "**Prompt for AI Schema Generation**",
-            placeholder="Extract the product name, price, description, and image URL.",
-            height=100
-        )
 
     start_button = st.button("Extract Data", type="primary", use_container_width=True)
 
@@ -87,10 +77,7 @@ if start_button:
 
                 try:
                     if parser_name == "AI Schema (CSS)":
-                        if not prompt:
-                            st.warning(f"⚠️ Skipping '{parser_name}' because the prompt is empty.")
-                            continue
-                        data = await parser_func(url, prompt)
+                        data = await parser_func(url)
                     else:
                         data = await parser_func(url)
 
