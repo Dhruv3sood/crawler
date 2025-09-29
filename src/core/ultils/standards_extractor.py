@@ -1,20 +1,31 @@
-import extruct
-from crawl4ai import AsyncWebCrawler
+from typing import Optional
+from src.strategies.registry import EXTRACTORS
 
-async def extract_standards(url: str, standard: str = "json-ld") -> dict:
+def is_valid_product(extracted: dict) -> bool:
+    """Check if the extraction contains actual product info."""
+    if not extracted:
+        return False
+    # Example: require at least title or price
+    if extracted.get("title", {}).get("text") or extracted.get("price", {}).get("amount", 0) > 0:
+        return True
+    return False
+
+async def extract_standard(data: dict, url: str, preferred: list[str] | None = None) -> dict | None:
     """
-    Extracts structured data from a webpage using the specified standard.
-
-    Args:
-        url (str): The URL of the webpage to extract data from.
-        standard (str, optional): The standard to use ('json-ld', 'microdata', 'opengraph', 'microformat', 'rdfa', 'dublincore'). Default is 'json-ld'.
-
-    Returns:
-        dict: The extracted structured data as a dictionary.
+    Try structured data extractors in order until one returns results.
+    :param data: extruct output dict
+    :param url: page URL
+    :param preferred: optional list of extractor names in desired order
     """
-    async with AsyncWebCrawler() as crawler:
-        response = await crawler.arun(url=url)
-        data = extruct.extract(response.html, syntaxes=[standard], uniform=True)
+    extractors = EXTRACTORS
+    if preferred:
+        extractors = sorted(
+            EXTRACTORS,
+            key=lambda e: preferred.index(e.name) if e.name in preferred else len(preferred)
+        )
 
-        #save results in json file in data in the root directory
-        return data
+    for extractor in extractors:
+        result = await extractor.extract(data, url)
+        if is_valid_product(result):
+            return result
+    return None

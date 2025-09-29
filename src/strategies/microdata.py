@@ -1,19 +1,19 @@
 from .base import BaseExtractor
 
-class RdfaExtractor(BaseExtractor):
-    name = "rdfa"
+class MicrodataExtractor(BaseExtractor):
+    name = "microdata"
 
     async def extract(self, data: dict, url: str) -> dict | None:
         """
-        Extract product information from RDFa structured data.
+        Extract product information from Microdata structured data.
         :param data: Extracted structured data dictionary.
-        :param url: Fallback URL if product JSON doesn't include one.
+        :param url: The URL of the webpage.
         :return: A dictionary with standardized product information or None.
         """
         product_item = None
 
         # Find the product node
-        for item in data.get("rdfa", []):
+        for item in data.get("microdata", []):
             if not isinstance(item, dict):
                 continue
             types = item.get("type", [])
