@@ -7,6 +7,7 @@ import os
 import requests
 import extruct
 from w3lib.html import get_base_url
+from ..core.ultils.data_cleaner import refine_data
 
 async def get_page_source_with_crawler(url: str) -> str:
     """Fetch fully rendered HTML using crawl4ai with fallback handling."""
@@ -34,7 +35,7 @@ async def get_page_source_with_crawler(url: str) -> str:
 
         return html
 
-def save_result_to_json(base_url: str, result, url: str | None = None, file_path: str = "results_by_baseurl.json"):
+def save_result_to_json(base_url: str, result, url: str | None = None, file_path: str = "data/results_by_baseurl.json"):
     if os.path.exists(file_path):
         with open(file_path, "r", encoding="utf-8") as f:
             all_results = json.load(f)
@@ -65,7 +66,7 @@ async def parse_schema(url: str, update_schema: bool = False):
     print(f"Running AI Schema parser for URL: {url}")
     parsed_url = urlparse(url)
     base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
-    schema_file = "schema.json"
+    schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "schema.json")
 
     prompt= """
          I need just this attributes and use exactly this names for the attributes: shop_item_id (ID or Art.Nr of the product), shop_name 
@@ -75,8 +76,8 @@ async def parse_schema(url: str, update_schema: bool = False):
          tracked) and image (image's url of the product). Do not hallucinate!
     """
 
-    if os.path.exists(schema_file):
-        with open(schema_file, "r", encoding="utf-8") as f:
+    if os.path.exists(schema_path):
+        with open(schema_path, "r", encoding="utf-8") as f:
             all_schemas = json.load(f)
     else:
         all_schemas = {}
@@ -84,6 +85,7 @@ async def parse_schema(url: str, update_schema: bool = False):
     if base_url in all_schemas and "CSS" in all_schemas[base_url].get("schema", {}) and not update_schema:
         schema = all_schemas[base_url]["schema"]["CSS"]
         print("Schema loaded from local cache (schema.json).")
+        print(schema)
     else:
         print("Generating new schema with LLM...")
         try:
@@ -96,7 +98,7 @@ async def parse_schema(url: str, update_schema: bool = False):
                 )
                 print("Generated Schema:", json.dumps(schema, indent=2))
                 all_schemas[base_url] = { "schema": { "CSS": schema } }
-                with open(schema_file, "w", encoding="utf-8") as f:
+                with open(schema_path, "w", encoding="utf-8") as f:
                     json.dump(all_schemas, f, ensure_ascii=False, indent=2)
                 print("Schema saved to schema.json")
         except Exception as e:
@@ -115,7 +117,14 @@ async def parse_schema(url: str, update_schema: bool = False):
             return None
         extracted = json.loads(result.extracted_content)
         save_result_to_json(base_url, extracted, url=url)
-        return extracted
+        if extracted:
+            print(f"Extracted {len(extracted)} items.")
+            for item in extracted:
+               extracted= await refine_data(item)
+               return extracted
+            return None
+        else:
+            print("No data extracted.")
 
 
 async def parse_json_ld(url: str):

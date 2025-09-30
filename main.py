@@ -2,7 +2,7 @@ import sys
 import nest_asyncio
 import streamlit as st
 import asyncio
-from extractor import (
+from src.app.extractor import (
     parse_schema,
     parse_json_ld,
     parse_opengraph,
@@ -10,6 +10,7 @@ from extractor import (
     parse_microdata,
     parse_rdfa
 )
+
 # --- FIX FOR WINDOWS ASYNCIO ---
 # This is necessary to run Playwright (used by crawl4ai) on Windows
 if sys.platform.startswith("win"):
