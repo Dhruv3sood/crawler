@@ -10,28 +10,34 @@ class MicrodataExtractor(BaseExtractor):
         :param url: The URL of the webpage.
         :return: A dictionary with standardized product information or None.
         """
-        product_item = None
-
-        # Find the product node
-        for item in data.get("microdata", []):
-            if not isinstance(item, dict):
-                continue
-            types = item.get("type", [])
-            if any("Product" in t for t in types):
-                product_item = item
-                break
-
-        if not product_item:
+        products = [
+            item for item in data.get("microdata", [])
+            if isinstance(item, dict) and item.get("@type") == "http://schema.org/Product"
+        ]
+        if len(products) != 1:
             return None
 
+        product_json = products[0]
+        print(product_json)
+
+        offers = product_json.get("offers")
+        if isinstance(offers, list):
+            offers = offers[0] if offers else {}
+        elif not isinstance(offers, dict):
+            return None
+
+        product_item = products[0]
         props = product_item.get("properties", {})
+
 
         # --- Offers ---
         offers = {}
         if "offers" in props and props["offers"]:
-            offer = props["offers"][0]
-            if isinstance(offer, dict):
-                offers = offer.get("properties", {})
+         offer = props["offers"]
+         if isinstance(offer, list):
+             offer = offer[0]
+         if isinstance(offer, dict):
+             offers = offer.get("properties", {})
 
         # --- Price ---
         price = offers.get("price", [0])[0]

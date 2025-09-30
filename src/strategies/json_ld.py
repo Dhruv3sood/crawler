@@ -1,45 +1,89 @@
 from typing import Optional
-
 from .base import BaseExtractor
 
 class JsonLDExtractor(BaseExtractor):
     name = "json-ld"
 
     async def extract(self, data: dict, url: str) -> Optional[dict]:
-        for item in data.get("json-ld", []):
-            if isinstance(item, dict) and item.get("@type") == "Product":
-                product_json = item
+        products = [
+            item for item in data.get("json-ld", [])
+            if isinstance(item, dict) and item.get("@type") == "Product"
+        ]
+        if len(products) != 1:
+            return None
 
-                # --- Offers ---
-                offers = product_json.get("offers")
-                if isinstance(offers, list) and offers:
-                    offers = offers[0]
-                elif isinstance(offers, dict):
-                    pass
-                else:
-                    offers = {}
+        product_json = products[0]
+        offers = product_json.get("offers")
+        if isinstance(offers, list):
+            offers = offers[0] if offers else {}
+        elif not isinstance(offers, dict):
+            offers = {}
 
-                # --- Price ---
-                price_spec = {"currency": "EUR", "amount": 0}
-                price_info = offers.get("priceSpecification")
-                if isinstance(price_info, list) and price_info:
-                    spec = price_info[0]
-                    try:
-                        price_spec["amount"] = int(float(spec.get("price", 0)) * 100)
-                        price_spec["currency"] = spec.get("priceCurrency", "EUR")
-                    except (ValueError, TypeError):
-                        pass
+        # --- Price ---
+        price_spec = {"currency": "EUR", "amount": 0}
 
-                return {
-                    "shopsItemId": str(product_json.get("sku", "")),
-                    "shopName": offers.get("seller", {}).get("name", "Unknown Shop"),
-                    "title": {"text": product_json.get("name", ""), "language": product_json.get("inLanguage", "de")},
-                    "description": {"text": (product_json.get("description") or "").strip(),
-                                    "language": product_json.get("inLanguage", "de")},
-                    "price": price_spec,
-                    "state": "AVAILABLE" if "InStock" in offers.get("availability", "") else "OUT_OF_STOCK",
-                    "url": product_json.get("url", url),
-                    "images": product_json.get("image", []) if isinstance(product_json.get("image"), list)
-                    else ([product_json.get("image")] if product_json.get("image") else []),
-                }
-        return None
+        try:
+            price = offers.get("price")
+            currency = offers.get("priceCurrency")
+            if price is not None and currency:
+                # Convert to cents (integer)
+                price_spec["amount"] = int(float(price) * 100)
+                price_spec["currency"] = currency
+
+        except (ValueError, TypeError):
+            pass
+
+        price_info = offers.get("priceSpecification")
+        if price_spec["amount"] == 0 and isinstance(price_info, list) and price_info:
+            spec = price_info[0]
+            try:
+                price_spec["amount"] = int(float(spec.get("price", "0")) * 100)
+                price_spec["currency"] = spec.get("priceCurrency", "EUR")
+            except (ValueError, TypeError):
+                pass
+
+        # --- Determine Availability ---
+        availability = offers.get("availability", "")
+        state = "UNKNOWN"  # Default state if no info is found
+
+        if not availability:
+            # If the availability field is completely missing or empty
+            state = "UNKNOWN"
+        elif "InStock" in availability:
+            # Item is available for purchase
+            state = "AVAILABLE"
+        elif "SoldOut" in availability:
+            # Item has been sold
+            state = "SOLD"
+        elif "PreOrder" in availability or "Backorder" in availability or "InStoreOnly" in availability:
+            # Item is temporarily reserved or not fully available for general sale
+            state = "RESERVED"
+        else:
+            # We have an availability value, but it doesn't match a known 'available' state
+            # This covers: OutOfStock, Discontinued, LimitedAvailability (if you don't treat that as AVAILABLE)
+            # We will map this to OUT_OF_STOCK, as it's the safest non-AVAILABLE status.
+            state = "OUT_OF_STOCK"
+
+        # Note on LISTED/REMOVED: These are internal system statuses and are not based on
+        # the Schema.org "availability" field, so they are not included in this mapping.
+
+        # --- Images ---
+        images = product_json.get("image", [])
+        if not isinstance(images, list):
+            images = [images] if images else []
+
+        return {
+            # Use sku from the ProductGroup, or productGroupID, or a variant's sku if needed
+            "shopsItemId": str(product_json.get("sku") or product_json.get("productGroupID", "UNKNOWN")),
+            # Shop name is an input
+            "shopName": offers.get("seller", {}).get("name", "UNKNOWN"),
+            "title": {"text": product_json.get("name", ""),
+                      "language": product_json.get("inLanguage", "UNKNOWN")},
+            "description": {"text": (product_json.get("description") or "UNKNOWN").strip(),
+                            "language": product_json.get("inLanguage", "UNKNOWN")},
+            "price": price_spec,
+            "state": state,
+            "url": product_json.get("url", offers.get("url", url)),
+            # Prioritize product url, then offer url, then fallback
+            "images": images,
+        }

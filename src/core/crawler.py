@@ -18,23 +18,21 @@ async def crawl_batch(url: str) -> None:
     )
 
     dispatcher = MemoryAdaptiveDispatcher(
-        memory_threshold_percent=70.0,
+        memory_threshold_percent=100.0,
         check_interval=1.0,
-        max_session_permit=10,
+        max_session_permit=100,
     )
 
     async with AsyncWebCrawler(config=browser_config) as crawler:
         results = await crawler.arun_many(urls=urls, config=run_config, dispatcher=dispatcher)
-
         list_data = []
         for result in results:
             if result.success:
-                # run extruct
                 base_url = get_base_url(result.html, result.url)
                 structured = extruct_extract(
                     result.html,
                     base_url=base_url,
-                    syntaxes=["json-ld"]
+                    syntaxes=["json-ld", "microformat", "microdata", "rdfa", "opengraph"],
                 )
 
                 # auto-dispatch extractors
