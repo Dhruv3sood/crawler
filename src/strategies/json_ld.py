@@ -26,7 +26,6 @@ class JsonLDExtractor(BaseExtractor):
             price = offers.get("price")
             currency = offers.get("priceCurrency")
             if price is not None and currency:
-                # Convert to cents (integer)
                 price_spec["amount"] = int(float(price) * 100)
                 price_spec["currency"] = currency
 
@@ -75,8 +74,6 @@ class JsonLDExtractor(BaseExtractor):
         return {
             # Use sku from the ProductGroup, or productGroupID, or a variant's sku if needed
             "shopsItemId": str(product_json.get("sku") or product_json.get("productGroupID", "UNKNOWN")),
-            # Shop name is an input
-            "shopName": offers.get("seller", {}).get("name", "UNKNOWN"),
             "title": {"text": product_json.get("name", ""),
                       "language": product_json.get("inLanguage", "UNKNOWN")},
             "description": {"text": (product_json.get("description") or "UNKNOWN").strip(),

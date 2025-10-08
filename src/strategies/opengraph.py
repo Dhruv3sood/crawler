@@ -35,7 +35,7 @@ class OpenGraphExtractor(BaseExtractor):
         except (ValueError, TypeError):
             price_amount = "UNKNOWN"
 
-        currency = get_val("og:price:currency", "UNKNOWN")
+        currency = get_val("product:price:currency", "UNKNOWN")
 
         # Determine availability
         availability = get_val("product:availability") or get_val("og:availability") or "UNKNOWN"

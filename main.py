@@ -1,117 +1,131 @@
 import sys
+import asyncio
 import nest_asyncio
 import streamlit as st
-import asyncio
-from src.app.extractor import (
-    parse_schema,
-    parse_json_ld,
-    parse_opengraph,
-    parse_twitter,
-    parse_microdata,
-    parse_rdfa
-)
+import json
+import requests
+from extruct import extract as extruct_extract
+from w3lib.html import get_base_url
+from src.app.extractor import parse_schema
 
-# --- FIX FOR WINDOWS ASYNCIO ---
-# This is necessary to run Playwright (used by crawl4ai) on Windows
+# --- Windows asyncio fix ---
 if sys.platform.startswith("win"):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
 nest_asyncio.apply()
 
-# --- App Configuration ---
-st.set_page_config(
-    page_title="Web Data Extractor",
-    page_icon="🕸️",
-    layout="wide"
-)
-
-# --- Parser Mapping ---
-# Maps user-friendly names to the actual parser functions
-PARSERS = {
-    "JSON-LD": parse_json_ld,
-    "Microdata": parse_microdata,
-    "OpenGraph": parse_opengraph,
-    "Twitter Cards": parse_twitter,
-    "RDFA": parse_rdfa,
-    "AI Schema (CSS)": parse_schema,
-}
-
-# --- App UI ---
+# --- Streamlit Config ---
+st.set_page_config(page_title="🕸️ Web Data Extractor", page_icon="🕸️", layout="wide")
 st.title("🕸️ Universal Web Data Extractor")
 st.markdown(
-    "Enter a URL, select one or more extraction methods, and view the results. "
-    "The app will try the selected methods in order and stop at the first one that returns data."
+    """
+This tool extracts structured data from web pages using two strategies:
+- 🧠 **AI Schema (CSS)** — Custom AI-based extraction  
+- 🧩 **Standards Extractor** — Uses JSON-LD, Microdata, RDFa, OpenGraph, etc.
+"""
 )
 
-# --- Input Fields ---
+# --- Input Section ---
 with st.container(border=True):
-    url = st.text_input(
-        "**URL to Scrape**",
-        placeholder="https://example.com/product/123",
-        key="url_input"
+    url = st.text_input("🌐 **Enter a URL**", placeholder="https://example.com/product/123", key="url_input")
+    strategy = st.radio(
+        "🔍 Choose extraction strategy:",
+        ["AI Schema (CSS)", "Standards Extractor"],
+        horizontal=True,
+        index=1,
+    )
+    extract_btn = st.button("🚀 Extract", type="primary", use_container_width=True)
+
+# --- Helper functions ---
+async def extract_ai_schema(url: str):
+    """Run custom AI Schema (CSS) extractor."""
+    return await parse_schema(url)
+
+def extract_standards(url: str):
+    """Extract using extruct (standard syntaxes)."""
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; WebDataExtractor/1.0)"}
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    html = response.text
+    base_url = get_base_url(html, url)
+    return extruct_extract(
+        html,
+        base_url=base_url,
+        syntaxes=["microdata", "opengraph", "json-ld", "microformat", "rdfa", "dublincore"],
     )
 
-    available_parsers = list(PARSERS.keys())
-    selected_parsers = st.multiselect(
-        "**Choose Extraction Methods** (in order of execution)",
-        options=available_parsers,
-        default=[ "AI Schema (CSS)"] # Sensible defaults
-    )
+def beautify_json(data):
+    """Format JSON in a pretty, compact way."""
+    try:
+        return json.dumps(data, indent=2, ensure_ascii=False)
+    except Exception:
+        return str(data)
 
-    start_button = st.button("Extract Data", type="primary", use_container_width=True)
+# --- Display Helper ---
+def display_json_sections(data: dict):
+    """Render each syntax in collapsible expanders, 3 per row horizontally, full-width JSON inside."""
 
-# --- Execution Logic ---
-if start_button:
+    # Prepare syntaxes for display
+    syntaxes = []
+    for syntax, entries in data.items():
+        if not entries:
+            continue
+        clean_entries = []
+
+        for entry in entries:
+            # 🧹 Filter unwanted RDFa-like minimal entries
+            if (
+                isinstance(entry, dict)
+                and list(entry.keys()) == ["@id"]
+                or (
+                    "http://www.w3.org/1999/xhtml/vocab#role" in entry
+                    and len(entry.keys()) <= 2
+                )
+            ):
+                continue
+
+            # 🔹 Microdata filter: only include Products
+            if syntax.lower() == "microdata":
+                if entry.get("type") != "https://schema.org/Product":
+                    continue
+
+            clean_entries.append(entry)
+
+        if clean_entries:
+            syntaxes.append((syntax, clean_entries))
+
+    # Display expanders 3 per row
+    for i in range(0, len(syntaxes), 3):
+        cols = st.columns(3)
+        for j, col in enumerate(cols):
+            idx = i + j
+            if idx >= len(syntaxes):
+                continue
+            syntax, entries = syntaxes[idx]
+            with col:
+                with st.expander(f"📦 {syntax.upper()} — {len(entries)} entries", expanded=True):
+                    for entry in entries:
+                        st.code(beautify_json(entry), language="json", line_numbers=False)
+
+
+# --- Run Extraction ---
+if extract_btn:
     if not url:
-        st.error("Please enter a URL to start extraction.")
-    elif not selected_parsers:
-        st.error("Please select at least one extraction method.")
+        st.error("❌ Please enter a valid URL.")
     else:
-        # Placeholders for live updates
-        log_placeholder = st.empty()
-        result_placeholder = st.empty()
-
-        async def run_extraction():
-            for parser_name in selected_parsers:
-                parser_func = PARSERS[parser_name]
-                st.info(f"▶️ Trying method: **{parser_name}**...")
-
-                try:
-                    if parser_name == "AI Schema (CSS)":
-                        data = await parser_func(url)
-                    else:
-                        data = await parser_func(url)
-
-                    if data:
-                        st.success(f"✅ Success! Data found using **{parser_name}**.")
-                        with result_placeholder.container():
-                            st.subheader("Extracted Data")
-                            st.json(data)
-                        return True
-                    else:
-                        st.warning(f"🟡 Method '{parser_name}' ran but found no data.")
-                except Exception as e:
-                    st.error(f"❌ Method '{parser_name}' failed with an error: {e}")
-            return False
-
-        # --- Async Run Fix for Windows/Streamlit ---
-        with st.spinner("Extraction in progress... Please wait."):
+        st.info(f"Extracting data using **{strategy}**...")
+        with st.spinner("⏳ Fetching and analyzing data..."):
             try:
-                if sys.platform.startswith("win"):
-                    # Use ProactorEventLoop for Playwright subprocesses
-                    loop = asyncio.ProactorEventLoop()
-                    asyncio.set_event_loop(loop)
-                else:
+                if strategy == "AI Schema (CSS)":
                     loop = asyncio.get_event_loop()
+                    nest_asyncio.apply()
+                    result = loop.run_until_complete(extract_ai_schema(url))
+                    st.success("✅ Extraction complete!")
+                    st.code(beautify_json(result), language="json")
 
-                # Apply nest_asyncio to allow Streamlit to run async inside an existing loop
-                import nest_asyncio
-                nest_asyncio.apply()
+                else:  # Standards Extractor
+                    result = extract_standards(url)
+                    st.success("✅ Extraction complete!")
+                    display_json_sections(result)
 
-                is_successful = loop.run_until_complete(run_extraction())
             except Exception as e:
-                st.error(f"❌ Extraction failed: {e}")
-                is_successful = False
-
-        if not is_successful:
-            st.error("🚫 All selected extraction methods failed or found no data.")
+                st.error(f"⚠️ Extraction failed: {e}")
