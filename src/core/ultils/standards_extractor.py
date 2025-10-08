@@ -15,7 +15,6 @@ async def extract_standard(data: dict, url: str, preferred: list[str] | None = N
     """
     Gibt ein Produkt oder eine Liste von Produkten zurück.
     """
-    print(data)
     extractors = EXTRACTORS
     if preferred:
         extractors = sorted(
@@ -26,5 +25,8 @@ async def extract_standard(data: dict, url: str, preferred: list[str] | None = N
     for extractor in extractors:
         result = await extractor.extract(data, url)
         if is_valid_product(result):
+            print(f"Extractor '{extractor.name}' found valid product data.")
+            print(f"Row data: {data}")
+            print(f"Column data: {result}")
             return result
     return None

@@ -32,7 +32,7 @@ async def crawl_batch(url: str) -> None:
                 structured = extruct_extract(
                     result.html,
                     base_url=base_url,
-                    syntaxes=["json-ld", "microformat", "microdata", "rdfa", "opengraph"],
+                    syntaxes=["microdata", "opengraph", "json-ld", "microformat", "rdfa", "dublincore"],
                 )
 
                 # auto-dispatch extractors
