@@ -93,18 +93,10 @@ def display_json_sections(data: dict):
         if clean_entries:
             syntaxes.append((syntax, clean_entries))
 
-    # Display expanders 3 per row
-    for i in range(0, len(syntaxes), 3):
-        cols = st.columns(3)
-        for j, col in enumerate(cols):
-            idx = i + j
-            if idx >= len(syntaxes):
-                continue
-            syntax, entries = syntaxes[idx]
-            with col:
-                with st.expander(f"📦 {syntax.upper()} — {len(entries)} entries", expanded=True):
-                    for entry in entries:
-                        st.code(beautify_json(entry), language="json", line_numbers=False)
+    for syntax, entries in syntaxes:
+        with st.expander(f"📦 {syntax.upper()} — {len(entries)} entries", expanded=True):
+            for entry in entries:
+                st.code(beautify_json(entry), language="json", line_numbers=False)
 
 
 # --- Run Extraction ---

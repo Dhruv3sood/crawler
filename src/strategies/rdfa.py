@@ -11,61 +11,66 @@ class RdfaExtractor(BaseExtractor):
         :return: A dictionary with standardized product information or None.
         """
         product_item = None
-
-        # Find the product node
         for item in data.get("rdfa", []):
-            if not isinstance(item, dict):
-                continue
-            types = item.get("type", [])
-            if any("Product" in t for t in types):
+            types = item.get("http://ogp.me/ns#type", [])
+            if any(t.get("@value", "").lower() == "product" for t in types):
                 product_item = item
                 break
 
         if not product_item:
             return None
 
-        props = product_item.get("properties", {})
+        def get_first_value(key: str, default=""):
+            items = product_item.get(key, [])
+            if items and isinstance(items, list):
+                return items[0].get("@value", default)
+            return default
 
-        # --- Offers ---
-        offers = {}
-        if "offers" in props and props["offers"]:
-            offer = props["offers"][0]
-            if isinstance(offer, dict):
-                offers = offer.get("properties", {})
+        def get_all_values(key: str):
+            items = product_item.get(key, [])
+            if not isinstance(items, list):
+                return []
+            return [i["@value"] for i in items if "@value" in i]
 
-        # --- Price ---
-        price = offers.get("price", [0])[0]
-        currency = offers.get("priceCurrency", ["EUR"])[0]
-        price_spec = {
-            "currency": currency,
-            "amount": int(float(price) * 100) if price else 0
-        }
+        title = get_first_value("http://ogp.me/ns#title")
+        description = get_first_value("http://ogp.me/ns#description")
+        product_url = get_first_value("http://ogp.me/ns#url", url)
+        images = get_all_values("http://ogp.me/ns#image")
+        language = get_first_value("http://ogp.me/ns#locale", "de")[0:2]
 
-        # --- Shop name ---
-        shop_name = "Unknown Shop"
-        if "seller" in offers and offers["seller"]:
-            seller = offers["seller"][0]
-            if isinstance(seller, dict):
-                shop_name = seller.get("properties", {}).get("name", ["Unknown Shop"])[0]
+        # Price handling
+        raw_price = get_first_value("product:price:amount") or get_first_value("product:price", "UNKNOWN")
 
-        # --- Images ---
-        images = props.get("image", [])
-        if not isinstance(images, list):
-            images = [images] if images else []
+        # Handle European decimal format
+        if raw_price != "UNKNOWN":
+            raw_price = raw_price.replace(",", ".")
+
+        currency = get_first_value("product:price:currency", "UNKNOWN")
+        try:
+            price_spec = {"currency": currency, "amount": int(float(raw_price) * 100)}
+        except ValueError:
+            price_spec = {"currency": currency, "amount": "UNKNOWN"}
+
+        availability = get_first_value("product:availability", "")
+        if not availability:
+            state = "UNKNOWN"
+        elif "InStock" in availability:
+            state = "AVAILABLE"
+        elif "SoldOut" in availability:
+            state = "SOLD"
+        elif any(k in availability for k in ["PreOrder", "Backorder", "InStoreOnly"]):
+            state = "RESERVED"
+        else:
+            state = "OUT_OF_STOCK"
+
+        shops_item_id = product_url if product_url else "UNKNOWN"
 
         return {
-            "shopsItemId": str(props.get("sku", [""])[0]),
-            "shopName": shop_name,
-            "title": {
-                "text": props.get("name", [""])[0],
-                "language": props.get("inLanguage", ["de"])[0]
-            },
-            "description": {
-                "text": (props.get("description", [""])[0] or "").strip(),
-                "language": props.get("inLanguage", ["de"])[0]
-            },
+            "shopsItemId": shops_item_id,
+            "title": {"text": title, "language": language},
+            "description": {"text": description, "language": language},
             "price": price_spec,
-            "state": "AVAILABLE" if "InStock" in (offers.get("availability", [""])[0]) else "OUT_OF_STOCK",
-            "url": props.get("url", [url])[0],
+            "state": state,
+            "url": product_url,
             "images": images,
         }
