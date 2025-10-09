@@ -6,14 +6,22 @@ class MicrodataExtractor(BaseExtractor):
     name = "microdata"
 
     async def extract(self, data: dict, url: str) -> Optional[dict]:
-        # Get all products from microdata
-        products = [
-            item for item in data.get("microdata", [])
-            if isinstance(item, dict) and item.get("type", item.get("@type")) in [
-                "http://schema.org/Product",
-                "https://schema.org/Product"
-            ]
-        ]
+        def find_products(data):
+            products = []
+            if isinstance(data, dict):
+                if data.get("type", data.get("@type")) in [
+                    "http://schema.org/Product",
+                    "https://schema.org/Product"
+                ]:
+                    products.append(data)
+                for v in data.values():
+                    products.extend(find_products(v))
+            elif isinstance(data, list):
+                for item in data:
+                    products.extend(find_products(item))
+            return products
+
+        products = find_products(data.get("microdata", []))
         if not products:
             return None
 
