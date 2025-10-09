@@ -32,7 +32,7 @@ async def crawl_batch(url: str) -> None:
                 structured = extruct_extract(
                     result.html,
                     base_url=base_url,
-                    syntaxes=[ "json-ld", "microdata", "opengraph", "microformat", "rdfa", "dublincore"]
+                    syntaxes=["opengraph"]
                 )
 
                 extracted_data = await extract_standard(structured, result.url)
@@ -47,4 +47,4 @@ async def crawl_batch(url: str) -> None:
             json.dump(list_data, f, indent=4)
 
 if __name__ == "__main__":
-    asyncio.run(crawl_batch("https://www.orden-militaria.de/epages/Shop46826.sf...Button/de_DE/?ObjectPath=/Shops/Shop46826/Products/789"))
+    asyncio.run(crawl_batch(""))
