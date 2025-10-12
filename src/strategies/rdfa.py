@@ -13,7 +13,7 @@ class RdfaExtractor(BaseExtractor):
         product_item = None
         for item in data.get("rdfa", []):
             types = item.get("http://ogp.me/ns#type", [])
-            if any(t.get("@value", "").lower() in ("product", "article") for t in types):
+            if any(t.get("@value", "").lower() in ("product") for t in types):
                 product_item = item
                 break
 

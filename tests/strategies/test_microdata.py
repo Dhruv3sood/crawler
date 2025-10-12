@@ -84,7 +84,7 @@ async def test_price_invalid_format_results_in_zero_and_default_currency():
     })
     res = await extractor.extract(data, "http://fallback")
     assert res["price"]["amount"] == 0
-    assert res["price"]["currency"] == "EUR"
+    assert res["price"]["currency"] == "UNKNOWN"
 
 
 @pytest.mark.asyncio
@@ -97,7 +97,7 @@ async def test_price_missing_currency_sets_amount_and_keeps_default_currency():
     })
     res = await extractor.extract(data, "http://fallback")
     assert res["price"]["amount"] == 1000
-    assert res["price"]["currency"] == "EUR"
+    assert res["price"]["currency"] == "UNKNOWN"
 
 
 @pytest.mark.asyncio
@@ -182,7 +182,7 @@ async def test_shops_item_id_precedence_and_defaults():
         "name": "Test",
     })
     res3 = await extractor.extract(data3, "http://fallback")
-    assert res3["shopsItemId"] == "UNKNOWN"
+    assert res3["shopsItemId"] == "http://fallback"
 
 
 @pytest.mark.asyncio
@@ -275,7 +275,7 @@ async def test_offers_invalid_type_is_handled_gracefully():
     })
     res = await extractor.extract(data, "http://fallback")
     assert res["price"]["amount"] == 0
-    assert res["price"]["currency"] == "EUR"
+    assert res["price"]["currency"] == "UNKNOWN"
     assert res["state"] == "UNKNOWN"
 
 

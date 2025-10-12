@@ -190,7 +190,7 @@ async def test_shops_item_id_precedence_and_defaults():
         "name": "Test",
     })
     res3 = await extractor.extract(data3, "http://fallback")
-    assert res3["shopsItemId"] == "UNKNOWN"
+    assert res3["shopsItemId"] == "http://fallback"
 
 
 @pytest.mark.asyncio

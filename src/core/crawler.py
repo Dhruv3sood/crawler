@@ -48,4 +48,4 @@ async def crawl_batch(url: str) -> None:
             json.dump(list_data, f, indent=4)
 
 if __name__ == "__main__":
-    asyncio.run(crawl_batch("https://vintage-antik-store.de/altes-dampfmaschinen-antriebsmodell-schleifbock-blechspielzeug/28111"))
+    asyncio.run(crawl_batch("https://furthof-antikmoebel.de/"))

@@ -86,7 +86,7 @@ class JsonLDExtractor(BaseExtractor):
 
         return {
             # Use sku from the ProductGroup, or productGroupID, or a variant's sku if needed
-            "shopsItemId": str(product_json.get("sku") or product_json.get("productGroupID", "UNKNOWN")),
+            "shopsItemId": str(product_json.get("sku") or product_json.get("productGroupID", url)),
             "title": {"text": product_json.get("name", ""),
                       "language": product_json.get("inLanguage", "UNKNOWN")},
             "description": {"text": (product_json.get("description") or "UNKNOWN").strip(),

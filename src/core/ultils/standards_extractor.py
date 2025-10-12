@@ -31,8 +31,21 @@ def merge_products(base: dict, new: dict) -> dict:
                 merged[key] = value
         # Price merge
         elif key == "price" and isinstance(value, dict):
-            if value.get("amount", 0) not in [0, "UNKNOWN", ""]:
-                merged[key] = value
+           merged_price = dict(merged.get("price", {}))
+
+           new_amount = value.get("amount")
+           if isinstance(new_amount, (int, float)) and new_amount > 0:
+               merged_price["amount"] = new_amount
+           elif "amount" not in merged_price:
+               merged_price["amount"] = new_amount or 0
+
+           new_currency = value.get("currency")
+           if new_currency and new_currency not in ["", "UNKNOWN"]:
+               merged_price["currency"] = new_currency
+           elif "currency" not in merged_price:
+               merged_price["currency"] = new_currency or "UNKNOWN"
+
+           merged[key] = merged_price
         # Recursive merge for dicts
         elif isinstance(value, dict):
             merged[key] = merge_products(merged.get(key, {}), value)

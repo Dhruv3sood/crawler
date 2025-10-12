@@ -7,6 +7,7 @@ async def sitemap_extractor(url: str) -> List[str]:
     async with AsyncUrlSeeder() as seeder:
         config = SeedingConfig(source="sitemap+cc",
                                live_check=True,
+                               concurrency=50,
                                verbose=True,
                                filter_nonsense_urls=True,
                                )
