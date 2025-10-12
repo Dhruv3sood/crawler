@@ -9,3 +9,5 @@ extruct
 w3lib
 requests
 lxml
+pytest
+pytest-asyncio
