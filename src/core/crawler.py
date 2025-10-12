@@ -15,12 +15,13 @@ async def crawl_batch(url: str) -> None:
         cache_mode=CacheMode.BYPASS,
         stream=False,
         check_robots_txt=True,
+        verbose=True
     )
 
     dispatcher = MemoryAdaptiveDispatcher(
         memory_threshold_percent=100.0,
         check_interval=1.0,
-        max_session_permit=100,
+        max_session_permit=50,
     )
 
     async with AsyncWebCrawler(config=browser_config) as crawler:
@@ -32,7 +33,7 @@ async def crawl_batch(url: str) -> None:
                 structured = extruct_extract(
                     result.html,
                     base_url=base_url,
-                    syntaxes=["opengraph"]
+                    syntaxes=["json-ld", "microdata", "rdfa", "opengraph"],
                 )
 
                 extracted_data = await extract_standard(structured, result.url)
@@ -47,4 +48,4 @@ async def crawl_batch(url: str) -> None:
             json.dump(list_data, f, indent=4)
 
 if __name__ == "__main__":
-    asyncio.run(crawl_batch(""))
+    asyncio.run(crawl_batch("https://vintage-antik-store.de/altes-dampfmaschinen-antriebsmodell-schleifbock-blechspielzeug/28111"))

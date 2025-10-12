@@ -5,11 +5,24 @@ class JsonLDExtractor(BaseExtractor):
     name = "json-ld"
 
     async def extract(self, data: dict, url: str) -> Optional[dict]:
-        products = [
-            item for item in data.get("json-ld", [])
-            if isinstance(item, dict) and item.get("@type") == "Product"
-        ]
-        if len(products) != 1:
+        products = []
+
+        for entry in data.get("json-ld", []):
+            if not isinstance(entry, dict):
+                continue
+
+            # Direct product
+            if entry.get("@type") == "Product":
+                products.append(entry)
+
+            # Product(s) nested in @graph
+            graph = entry.get("@graph")
+            if isinstance(graph, list):
+                products.extend(
+                    item for item in graph
+                    if isinstance(item, dict) and item.get("@type") == "Product"
+                )
+        if not products:
             return None
 
         product_json = products[0]
@@ -26,7 +39,7 @@ class JsonLDExtractor(BaseExtractor):
             price = offers.get("price")
             currency = offers.get("priceCurrency")
             if price is not None and currency:
-                price_spec["amount"] = int(float(price) * 100)
+                price_spec["amount"] = int(round(float(price) * 100))
                 price_spec["currency"] = currency
 
         except (ValueError, TypeError):
@@ -37,7 +50,7 @@ class JsonLDExtractor(BaseExtractor):
             spec = price_info[0]
             try:
                 price_spec["amount"] = int(float(spec.get("price", "0")) * 100)
-                price_spec["currency"] = spec.get("priceCurrency", "EUR")
+                price_spec["currency"] = spec.get("priceCurrency", "UKNOWN")
             except (ValueError, TypeError):
                 pass
 

@@ -1,19 +1,103 @@
 from src.strategies.registry import EXTRACTORS
+import aiohttp
+from extruct import extract as extruct_extract
 
 def is_valid_product(extracted) -> bool:
-    """Akzeptiert ein Produkt oder eine Liste von Produkten."""
+    """Accepts a single product or a list of products."""
     if not extracted:
         return False
     if isinstance(extracted, list):
         return any(is_valid_product(item) for item in extracted)
-    # Einzelnes Produkt
+    # Single product
     if extracted.get("title", {}).get("text") or extracted.get("price", {}).get("amount", 0) > 0:
         return True
     return False
 
+
+def merge_products(base: dict, new: dict) -> dict:
+    """
+    Merge two product dictionaries.
+    Keeps existing values in `base` and fills in missing ones from `new`.
+    If both have nested dicts, merges them recursively.
+    Also deduplicates images by URL.
+    """
+    merged = dict(base)
+    for key, value in new.items():
+        # Special case for shopsItemId: prefer value without URL if available
+        if key == "shopsItemId":
+            if merged.get(key, "").startswith("http") and value and not value.startswith("http"):
+                merged[key] = value
+            elif not merged.get(key) or merged.get(key) in ["", "UNKNOWN"]:
+                merged[key] = value
+        # Price merge
+        elif key == "price" and isinstance(value, dict):
+            if value.get("amount", 0) not in [0, "UNKNOWN", ""]:
+                merged[key] = value
+        # Recursive merge for dicts
+        elif isinstance(value, dict):
+            merged[key] = merge_products(merged.get(key, {}), value)
+        # Deduplicate images
+        elif isinstance(value, list) and key == "images":
+            existing_urls = set()
+            new_images = []
+            for img in merged.get(key, []):
+                if isinstance(img, dict) and img.get("url"):
+                    existing_urls.add(img["url"])
+                elif isinstance(img, str):
+                    existing_urls.add(img)
+            for img in value:
+                url = img["url"] if isinstance(img, dict) and img.get("url") else img if isinstance(img, str) else None
+                if url and url not in existing_urls:
+                    new_images.append(img)
+                    existing_urls.add(url)
+            merged.setdefault(key, []).extend(new_images)
+        # Replace "" or UNKNOWN with valid value
+        elif value not in ["", "UNKNOWN", 0] and (merged.get(key) in ["", "UNKNOWN", 0] or not merged.get(key)):
+            merged[key] = value
+    return merged
+
+
+def are_products_equal(p1: dict, p2: dict) -> bool:
+    """
+    Check if two products are likely the same.
+    Comparison is based on title text or product URL if available.
+    """
+    title1 = (p1.get("title") or {}).get("text", "").strip().lower()
+    title2 = (p2.get("title") or {}).get("text", "").strip().lower()
+    url1 = (p1.get("url") or "").strip().lower()
+    url2 = (p2.get("url") or "").strip().lower()
+
+    if url1 and url2:
+        return url1 == url2
+    if title1 and title2:
+        return title1 == title2
+    return False
+
+
+def merge_product_lists(list1: list[dict], list2: list[dict]) -> list[dict]:
+    """
+    Merge two product lists.
+    - Products that look identical are merged.
+    - Unique ones are added.
+    """
+    merged = list(list1)
+
+    for new_item in list2:
+        found = False
+        for i, existing_item in enumerate(merged):
+            if are_products_equal(existing_item, new_item):
+                merged[i] = merge_products(existing_item, new_item)
+                found = True
+                break
+        if not found:
+            merged.append(new_item)
+
+    return merged
+
+
 async def extract_standard(data: dict, url: str, preferred: list[str] | None = None) -> dict | list[dict] | None:
     """
-    Gibt ein Produkt oder eine Liste von Produkten zurück.
+    Combines results from multiple extractors to create the most complete and deduplicated product data possible.
     """
     extractors = EXTRACTORS
     if preferred:
@@ -22,11 +106,51 @@ async def extract_standard(data: dict, url: str, preferred: list[str] | None = N
             key=lambda e: preferred.index(e.name) if e.name in preferred else len(preferred)
         )
 
+    combined_result = None
+
     for extractor in extractors:
         result = await extractor.extract(data, url)
-        if is_valid_product(result):
-            print(f"Extractor '{extractor.name}' found valid product data.")
-            print(f"Row data: {data}")
-            print(f"Column data: {result}")
-            return result
-    return None
+        print(f"Extractor '{extractor.name}' result: {result}")
+        if not is_valid_product(result):
+            continue
+
+        if combined_result is None:
+            combined_result = result
+        else:
+            # Merge logic for different result types
+            if isinstance(combined_result, list) and isinstance(result, list):
+                combined_result = merge_product_lists(combined_result, result)
+            elif isinstance(combined_result, dict) and isinstance(result, dict):
+                combined_result = merge_products(combined_result, result)
+            elif isinstance(combined_result, list) and isinstance(result, dict):
+                combined_result = merge_product_lists(combined_result, [result])
+            elif isinstance(combined_result, dict) and isinstance(result, list):
+                combined_result = merge_product_lists([combined_result], result)
+
+    return combined_result
+
+
+
+async def single_url(url: str):
+    """Fetch a product page and test extraction with all registered extractors."""
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as resp:
+            html = await resp.text()
+            base_url = str(resp.url)
+
+    # Run extruct to collect all structured data syntaxes
+    data = extruct_extract(
+        html,
+        base_url=base_url,
+        syntaxes=["json-ld", "microdata", "rdfa", "opengraph", "microformat"],
+    )
+
+    result = await extract_standard(data, url, preferred=["json-ld", "microdata", "rdfa", "opengraph"])
+
+    print("\n✅ Final combined product result:")
+    print(result)
+
+if __name__ == "__main__":
+    import asyncio
+    test_url = "https://www.lot-tissimo.com/de-de/auction-catalogues/bieberle/catalogue-id-auktio37-10038/lot-e143db6d-3dc7-4e74-8dba-b35600ea7536"
+    asyncio.run(single_url(test_url))
