@@ -1,13 +1,9 @@
+import asyncio
 import json
 from urllib.parse import urlparse
-from bs4 import BeautifulSoup
 from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode, LLMConfig
 from crawl4ai import JsonCssExtractionStrategy
 import os
-import requests
-import extruct
-from w3lib.html import get_base_url
-from ..core.ultils.data_cleaner import refine_data
 
 async def get_page_source_with_crawler(url: str) -> str:
     """Fetch fully rendered HTML using crawl4ai with fallback handling."""
@@ -116,12 +112,9 @@ async def parse_schema(url: str, update_schema: bool = False):
             print(f"Crawl failed: {result.error_message}")
             return None
         extracted = json.loads(result.extracted_content)
-        save_result_to_json(base_url, extracted, url=url)
-        if extracted:
-            print(f"Extracted {len(extracted)} items.")
-            for item in extracted:
-               extracted= await refine_data(item)
-               return extracted
-            return None
-        else:
-            print("No data extracted.")
+        print("Extraction Result:", json.dumps(extracted, indent=2, ensure_ascii=False))
+
+
+
+if __name__ == "__main__":
+    asyncio.run(parse_schema(""))

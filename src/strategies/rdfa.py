@@ -13,7 +13,7 @@ class RdfaExtractor(BaseExtractor):
         product_item = None
         for item in data.get("rdfa", []):
             types = item.get("http://ogp.me/ns#type", [])
-            if any(t.get("@value", "").lower() == "product" for t in types):
+            if any(t.get("@value", "").lower() in ("product", "article") for t in types):
                 product_item = item
                 break
 
@@ -36,7 +36,8 @@ class RdfaExtractor(BaseExtractor):
         description = get_first_value("http://ogp.me/ns#description")
         product_url = get_first_value("http://ogp.me/ns#url", url)
         images = get_all_values("http://ogp.me/ns#image")
-        language = get_first_value("http://ogp.me/ns#locale", "de")[0:2]
+        language_value = get_first_value("http://ogp.me/ns#locale", "")
+        language = language_value[0:2] if language_value else "UNKNOWN"
 
         # Price handling
         raw_price = get_first_value("product:price:amount") or get_first_value("product:price", "UNKNOWN")
@@ -49,7 +50,7 @@ class RdfaExtractor(BaseExtractor):
         try:
             price_spec = {"currency": currency, "amount": int(float(raw_price) * 100)}
         except ValueError:
-            price_spec = {"currency": currency, "amount": "UNKNOWN"}
+            price_spec = {"currency": currency, "amount": 0}
 
         availability = get_first_value("product:availability", "")
         if not availability:

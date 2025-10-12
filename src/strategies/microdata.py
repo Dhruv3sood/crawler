@@ -1,4 +1,5 @@
 from typing import Optional
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from .base import BaseExtractor
 
 
@@ -34,17 +35,19 @@ class MicrodataExtractor(BaseExtractor):
             offers = offers["properties"]
         elif isinstance(offers, list):
             offers = offers[0].get("properties", offers[0]) if offers else {}
+        if not isinstance(offers, dict):
+            offers = {}
 
-        # Price extraction
         price_spec = {"currency": "EUR", "amount": 0}
         try:
             price = offers.get("price")
             currency = offers.get("priceCurrency")
             if price is not None:
-                price_spec["amount"] = int(float(price) * 100)
+                cents = int((Decimal(str(price)) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+                price_spec["amount"] = cents
             if currency:
                 price_spec["currency"] = currency
-        except (ValueError, TypeError):
+        except (InvalidOperation, ValueError, TypeError):
             pass
 
         # Availability mapping

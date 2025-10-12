@@ -41,6 +41,9 @@ class OpenGraphExtractor(BaseExtractor):
 
         availability = get_val("product:availability") or get_val("og:availability") or ""
 
+        locale = get_val("og:locale", "")
+        language = locale.split("_")[0] if locale else "UNKNOWN"
+
         if not availability:
             state = "UNKNOWN"
         elif any(k in availability.lower() for k in ["instock", "in stock", "available"]):
@@ -56,8 +59,8 @@ class OpenGraphExtractor(BaseExtractor):
         # Build result
         return {
             "shopsItemId": url,
-            "title": {"text": get_val("og:title", ""), "language": "UNKNOWN"},
-            "description": {"text": get_val("og:description", ""), "language": "UNKNOWN"},
+            "title": {"text": get_val("og:title", ""), "language": language},
+            "description": {"text": get_val("og:description", ""), "language": language},
             "price": {"currency": currency, "amount": price_amount},
             "state": state,
             "url": get_val("og:url", url),
