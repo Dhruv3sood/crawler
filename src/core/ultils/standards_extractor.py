@@ -1,3 +1,5 @@
+import asyncio
+
 from src.strategies.registry import EXTRACTORS
 import aiohttp
 from extruct import extract as extruct_extract
@@ -31,8 +33,21 @@ def merge_products(base: dict, new: dict) -> dict:
                 merged[key] = value
         # Price merge
         elif key == "price" and isinstance(value, dict):
-            if value.get("amount", 0) not in [0, "UNKNOWN", ""]:
-                merged[key] = value
+           merged_price = dict(merged.get("price", {}))
+
+           new_amount = value.get("amount")
+           if isinstance(new_amount, (int, float)) and new_amount > 0:
+               merged_price["amount"] = new_amount
+           elif "amount" not in merged_price:
+               merged_price["amount"] = new_amount or 0
+
+           new_currency = value.get("currency")
+           if new_currency and new_currency not in ["", "UNKNOWN"]:
+               merged_price["currency"] = new_currency
+           elif "currency" not in merged_price:
+               merged_price["currency"] = new_currency or "UNKNOWN"
+
+           merged[key] = merged_price
         # Recursive merge for dicts
         elif isinstance(value, dict):
             merged[key] = merge_products(merged.get(key, {}), value)
@@ -151,6 +166,5 @@ async def single_url(url: str):
     print(result)
 
 if __name__ == "__main__":
-    import asyncio
-    test_url = "https://www.lot-tissimo.com/de-de/auction-catalogues/bieberle/catalogue-id-auktio37-10038/lot-e143db6d-3dc7-4e74-8dba-b35600ea7536"
+    test_url = ""
     asyncio.run(single_url(test_url))

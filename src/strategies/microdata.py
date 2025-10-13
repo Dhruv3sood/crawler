@@ -12,7 +12,8 @@ class MicrodataExtractor(BaseExtractor):
             if isinstance(data, dict):
                 if data.get("type", data.get("@type")) in [
                     "http://schema.org/Product",
-                    "https://schema.org/Product"
+                    "https://schema.org/Product",
+                    "http://data-vocabulary.org/Product"
                 ]:
                     products.append(data)
                 for v in data.values():
@@ -38,7 +39,7 @@ class MicrodataExtractor(BaseExtractor):
         if not isinstance(offers, dict):
             offers = {}
 
-        price_spec = {"currency": "EUR", "amount": 0}
+        price_spec = {"currency": "UNKNOWN", "amount": 0}
         try:
             price = offers.get("price")
             currency = offers.get("priceCurrency")
@@ -70,7 +71,7 @@ class MicrodataExtractor(BaseExtractor):
 
         # Return structured product
         return {
-            "shopsItemId": str(props.get("sku") or props.get("productID", "UNKNOWN")),
+            "shopsItemId": str(props.get("sku") or props.get("productID", url)),
             "title": {"text": props.get("name", ""), "language": props.get("inLanguage", "UNKNOWN")},
             "description": {"text": (props.get("description") or "UNKNOWN").strip(), "language": props.get("inLanguage", "UNKNOWN")},
             "price": price_spec,
