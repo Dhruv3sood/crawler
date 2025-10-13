@@ -11,6 +11,7 @@ from src.core.ultils.standards_extractor import extract_standard
 
 async def crawl_batch(domains: list[str]) -> None:
     results = await sitemap_extractor(domains)
+    all_results = {}
     for domain, urls_list in results.items():
         print(f"Domain: {domain}")
         browser_config = BrowserConfig(headless=True, verbose=False)
@@ -47,9 +48,11 @@ async def crawl_batch(domains: list[str]) -> None:
                 else:
                     print(f"Failed to crawl {result.url}: {result.error_message}")
 
-            with open("../../data/crawled_data.json", "w") as f:
-                json.dump(list_data, f, indent=4)
+            all_results[domain] = list_data
+
+    with open("../../data/crawled_data.json", "w") as f:
+        json.dump(all_results, f, indent=4)
             #await send_items(list_data)
 
 if __name__ == "__main__":
-    asyncio.run(crawl_batch([""]))
+    asyncio.run(crawl_batch(["", ""]))
