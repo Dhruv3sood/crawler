@@ -1,6 +1,7 @@
 from typing import Optional
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from .base import BaseExtractor
+from ..core.ultils.availability_normalizer import map_availability_to_state
 
 
 class MicrodataExtractor(BaseExtractor):
@@ -51,18 +52,7 @@ class MicrodataExtractor(BaseExtractor):
         except (InvalidOperation, ValueError, TypeError):
             pass
 
-        # Availability mapping
-        availability = offers.get("availability", "")
-        if not availability:
-            state = "UNKNOWN"
-        elif "InStock" in availability:
-            state = "AVAILABLE"
-        elif "SoldOut" in availability:
-            state = "SOLD"
-        elif any(k in availability for k in ["PreOrder", "Backorder", "InStoreOnly"]):
-            state = "RESERVED"
-        else:
-            state = "OUT_OF_STOCK"
+        state = map_availability_to_state(offers.get("availability"))
 
         # Images
         images = props.get("image", [])

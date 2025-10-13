@@ -1,5 +1,6 @@
 from typing import Optional
 from .base import BaseExtractor
+from ..core.ultils.availability_normalizer import map_availability_to_state
 
 class JsonLDExtractor(BaseExtractor):
     name = "json-ld"
@@ -54,30 +55,7 @@ class JsonLDExtractor(BaseExtractor):
             except (ValueError, TypeError):
                 pass
 
-        # --- Determine Availability ---
-        availability = offers.get("availability", "")
-        state = "UNKNOWN"  # Default state if no info is found
-
-        if not availability:
-            # If the availability field is completely missing or empty
-            state = "UNKNOWN"
-        elif "InStock" in availability:
-            # Item is available for purchase
-            state = "AVAILABLE"
-        elif "SoldOut" in availability:
-            # Item has been sold
-            state = "SOLD"
-        elif "PreOrder" in availability or "Backorder" in availability or "InStoreOnly" in availability:
-            # Item is temporarily reserved or not fully available for general sale
-            state = "RESERVED"
-        else:
-            # We have an availability value, but it doesn't match a known 'available' state
-            # This covers: OutOfStock, Discontinued, LimitedAvailability (if you don't treat that as AVAILABLE)
-            # We will map this to OUT_OF_STOCK, as it's the safest non-AVAILABLE status.
-            state = "OUT_OF_STOCK"
-
-        # Note on LISTED/REMOVED: These are internal system statuses and are not based on
-        # the Schema.org "availability" field, so they are not included in this mapping.
+        state = map_availability_to_state(offers.get("availability"))
 
         # --- Images ---
         images = product_json.get("image", [])
@@ -94,6 +72,5 @@ class JsonLDExtractor(BaseExtractor):
             "price": price_spec,
             "state": state,
             "url": product_json.get("url", offers.get("url", url)),
-            # Prioritize product url, then offer url, then fallback
             "images": images,
         }
