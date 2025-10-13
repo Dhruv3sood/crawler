@@ -1,3 +1,5 @@
+import asyncio
+
 from src.strategies.registry import EXTRACTORS
 import aiohttp
 from extruct import extract as extruct_extract
@@ -164,6 +166,5 @@ async def single_url(url: str):
     print(result)
 
 if __name__ == "__main__":
-    import asyncio
-    test_url = "https://www.lot-tissimo.com/de-de/auction-catalogues/bieberle/catalogue-id-auktio37-10038/lot-e143db6d-3dc7-4e74-8dba-b35600ea7536"
+    test_url = ""
     asyncio.run(single_url(test_url))

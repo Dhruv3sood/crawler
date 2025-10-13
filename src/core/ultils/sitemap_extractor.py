@@ -2,7 +2,7 @@ from typing import List
 from crawl4ai import AsyncUrlSeeder, SeedingConfig
 
 
-async def sitemap_extractor(url: str) -> List[str]:
+async def sitemap_extractor(domains: list[str]) -> dict[str, list[str]]:
     """Seed URLs using sitemap + Common Crawl."""
     async with AsyncUrlSeeder() as seeder:
         config = SeedingConfig(source="sitemap+cc",
@@ -11,7 +11,11 @@ async def sitemap_extractor(url: str) -> List[str]:
                                verbose=True,
                                filter_nonsense_urls=True,
                                )
-        urls = await seeder.urls(url, config)
-        valid_urls = [item["url"] for item in urls]
+        results = await seeder.many_urls(domains, config)
+        print({domain: [item["url"] for item in urls] for domain, urls in results.items()})
+        return {domain: [item["url"] for item in urls] for domain, urls in results.items()}
 
-        return valid_urls
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(sitemap_extractor([""]))
