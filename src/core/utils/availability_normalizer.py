@@ -1,4 +1,13 @@
 def normalize_availability(value) -> str:
+    """
+    Normalize an availability value to a standardized uppercase string.
+
+    Parameters:
+        value (Any): The raw availability value, which may be None, a string, or another type.
+
+    Returns:
+        str: The normalized availability string in uppercase. Returns an empty string if value is None.
+    """
     if value is None:
         return ""
     s = str(value)
