@@ -11,3 +11,5 @@ requests
 lxml
 pytest
 pytest-asyncio
+langdetect
+ruff

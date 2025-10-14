@@ -5,6 +5,7 @@ from crawl4ai import AsyncWebCrawler, CrawlerRunConfig, CacheMode, LLMConfig
 from crawl4ai import JsonCssExtractionStrategy
 import os
 
+
 async def get_page_source_with_crawler(url: str) -> str:
     """Fetch fully rendered HTML using crawl4ai with fallback handling."""
     print(f"Fetching page source for {url} using crawler...")
@@ -22,7 +23,11 @@ async def get_page_source_with_crawler(url: str) -> str:
             html = result.html_content
         elif hasattr(result, "data") and result.data.get("html"):
             html = result.data["html"]
-        elif isinstance(result, list) and len(result) > 0 and getattr(result[0], "html_content", None):
+        elif (
+            isinstance(result, list)
+            and len(result) > 0
+            and getattr(result[0], "html_content", None)
+        ):
             html = result[0].html_content
 
         if not html:
@@ -31,7 +36,13 @@ async def get_page_source_with_crawler(url: str) -> str:
 
         return html
 
-def save_result_to_json(base_url: str, result, url: str | None = None, file_path: str = "data/results_by_baseurl.json"):
+
+def save_result_to_json(
+    base_url: str,
+    result,
+    url: str | None = None,
+    file_path: str = "data/results_by_baseurl.json",
+):
     if os.path.exists(file_path):
         with open(file_path, "r", encoding="utf-8") as f:
             all_results = json.load(f)
@@ -58,13 +69,16 @@ def save_result_to_json(base_url: str, result, url: str | None = None, file_path
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(all_results, f, ensure_ascii=False, indent=2)
 
+
 async def parse_schema(url: str, update_schema: bool = False):
     print(f"Running AI Schema parser for URL: {url}")
     parsed_url = urlparse(url)
     base_url = f"{parsed_url.scheme}://{parsed_url.netloc}"
-    schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "schema.json")
+    schema_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "schema.json"
+    )
 
-    prompt= """
+    prompt = """
          I need just this attributes and use exactly this names for the attributes: shop_item_id (ID or Art.Nr of the product), shop_name 
          (The name of the shop that sales the product), title, current_price (The selling price of the product), currency, description (the longest 
          description found), state (LISTED: Item has been listed, AVAILABLE: Item is available for purchase, RESERVED: 
@@ -78,7 +92,11 @@ async def parse_schema(url: str, update_schema: bool = False):
     else:
         all_schemas = {}
 
-    if base_url in all_schemas and "CSS" in all_schemas[base_url].get("schema", {}) and not update_schema:
+    if (
+        base_url in all_schemas
+        and "CSS" in all_schemas[base_url].get("schema", {})
+        and not update_schema
+    ):
         schema = all_schemas[base_url]["schema"]["CSS"]
         print("Schema loaded from local cache (schema.json).")
         print(schema)
@@ -89,11 +107,14 @@ async def parse_schema(url: str, update_schema: bool = False):
                 response = await crawler.arun(url=url)
                 schema = JsonCssExtractionStrategy.generate_schema(
                     html=response.fit_html,
-                    llm_config=LLMConfig(provider="deepseek/deepseek-chat", api_token=os.getenv("DEEPSEEK_API_KEY")),
-                    query=prompt
+                    llm_config=LLMConfig(
+                        provider="deepseek/deepseek-chat",
+                        api_token=os.getenv("DEEPSEEK_API_KEY"),
+                    ),
+                    query=prompt,
                 )
                 print("Generated Schema:", json.dumps(schema, indent=2))
-                all_schemas[base_url] = { "schema": { "CSS": schema } }
+                all_schemas[base_url] = {"schema": {"CSS": schema}}
                 with open(schema_path, "w", encoding="utf-8") as f:
                     json.dump(all_schemas, f, ensure_ascii=False, indent=2)
                 print("Schema saved to schema.json")
@@ -113,7 +134,6 @@ async def parse_schema(url: str, update_schema: bool = False):
             return None
         extracted = json.loads(result.extracted_content)
         print("Extraction Result:", json.dumps(extracted, indent=2, ensure_ascii=False))
-
 
 
 if __name__ == "__main__":

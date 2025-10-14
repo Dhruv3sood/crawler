@@ -8,4 +8,3 @@ def something():
 class LocalizedText(BaseModel):
     text: str
     language: str
-

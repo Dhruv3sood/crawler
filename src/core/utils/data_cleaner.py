@@ -1,9 +1,12 @@
 import os
 import json
-from typing import Iterable, Union, Any, Coroutine
+from typing import Iterable, Union
 
 from openai import OpenAI
-from openai.types.chat import ChatCompletionUserMessageParam, ChatCompletionSystemMessageParam
+from openai.types.chat import (
+    ChatCompletionUserMessageParam,
+    ChatCompletionSystemMessageParam,
+)
 from openai.types.shared_params import ResponseFormatJSONSchema
 from openai.types.shared_params.response_format_json_schema import JSONSchema
 
@@ -17,7 +20,9 @@ async def refine_data(scraped_data: dict) -> Item:
     Other fields remain unchanged.
     """
 
-    client = OpenAI(api_key=os.getenv("DEEPSEEK_API_KEY"), base_url="https://api.deepseek.com")
+    client = OpenAI(
+        api_key=os.getenv("DEEPSEEK_API_KEY"), base_url="https://api.deepseek.com"
+    )
 
     # Only pass minimal fields to DeepSeek
     minimal_data = {
@@ -38,31 +43,45 @@ async def refine_data(scraped_data: dict) -> Item:
         - Do not invent or hallucinate any other data
         """
 
-    messages: Iterable[Union[ChatCompletionSystemMessageParam, ChatCompletionUserMessageParam]] = [
+    messages: Iterable[
+        Union[ChatCompletionSystemMessageParam, ChatCompletionUserMessageParam]
+    ] = [
         ChatCompletionSystemMessageParam(content=prompt, role="system"),
         ChatCompletionUserMessageParam(content=input_json, role="user"),
     ]
     response = client.chat.completions.create(
         model="deepseek-chat",
         messages=messages,
-        response_format= ResponseFormatJSONSchema(type="json_object",json_schema=JSONSchema(name="normalized_response", schema={
-            "type": "object",
-            "properties": {
-                "price": {
+        response_format=ResponseFormatJSONSchema(
+            type="json_object",
+            json_schema=JSONSchema(
+                name="normalized_response",
+                schema={
                     "type": "object",
                     "properties": {
-                        "currency": {"type": "string"},
-                        "amount": {"type": "integer", "minimum": 0}
+                        "price": {
+                            "type": "object",
+                            "properties": {
+                                "currency": {"type": "string"},
+                                "amount": {"type": "integer", "minimum": 0},
+                            },
+                            "required": ["currency", "amount"],
+                        },
+                        "state": {
+                            "type": "string",
+                            "enum": [
+                                "LISTED",
+                                "AVAILABLE",
+                                "RESERVED",
+                                "SOLD",
+                                "REMOVED",
+                            ],
+                        },
                     },
-                    "required": ["currency", "amount"]
+                    "required": ["price", "state"],
                 },
-                "state": {
-                    "type": "string",
-                    "enum": ["LISTED", "AVAILABLE", "RESERVED", "SOLD", "REMOVED"]
-                }
-            },
-            "required": ["price", "state"]
-        }))
+            ),
+        ),
     )
 
     normalized_str = response.choices[0].message.content
@@ -78,7 +97,7 @@ async def refine_data(scraped_data: dict) -> Item:
         price=Price(**normalized["price"]),
         state=normalized["state"],
         title={"text": scraped_data.get("title", ""), "language": "en"},
-        description={"text": scraped_data.get("description", ""), "language": "en"}
+        description={"text": scraped_data.get("description", ""), "language": "en"},
     )
 
     return item

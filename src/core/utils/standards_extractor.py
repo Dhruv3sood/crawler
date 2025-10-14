@@ -1,8 +1,9 @@
 import asyncio
-
+from langdetect import detect, LangDetectException
 from src.strategies.registry import EXTRACTORS
 import aiohttp
 from extruct import extract as extruct_extract
+
 
 def is_valid_product(extracted) -> bool:
     """Accepts a single product or a list of products."""
@@ -11,7 +12,10 @@ def is_valid_product(extracted) -> bool:
     if isinstance(extracted, list):
         return any(is_valid_product(item) for item in extracted)
     # Single product
-    if extracted.get("title", {}).get("text") or extracted.get("price", {}).get("amount", 0) > 0:
+    if (
+        extracted.get("title", {}).get("text")
+        or extracted.get("price", {}).get("amount", 0) > 0
+    ):
         return True
     return False
 
@@ -27,27 +31,31 @@ def merge_products(base: dict, new: dict) -> dict:
     for key, value in new.items():
         # Special case for shopsItemId: prefer value without URL if available
         if key == "shopsItemId":
-            if merged.get(key, "").startswith("http") and value and not value.startswith("http"):
+            if (
+                merged.get(key, "").startswith("http")
+                and value
+                and not value.startswith("http")
+            ):
                 merged[key] = value
             elif not merged.get(key) or merged.get(key) in ["", "UNKNOWN"]:
                 merged[key] = value
         # Price merge
         elif key == "price" and isinstance(value, dict):
-           merged_price = dict(merged.get("price", {}))
+            merged_price = dict(merged.get("price", {}))
 
-           new_amount = value.get("amount")
-           if isinstance(new_amount, (int, float)) and new_amount > 0:
-               merged_price["amount"] = new_amount
-           elif "amount" not in merged_price:
-               merged_price["amount"] = new_amount or 0
+            new_amount = value.get("amount")
+            if isinstance(new_amount, (int, float)) and new_amount > 0:
+                merged_price["amount"] = new_amount
+            elif "amount" not in merged_price:
+                merged_price["amount"] = new_amount or 0
 
-           new_currency = value.get("currency")
-           if new_currency and new_currency not in ["", "UNKNOWN"]:
-               merged_price["currency"] = new_currency
-           elif "currency" not in merged_price:
-               merged_price["currency"] = new_currency or "UNKNOWN"
+            new_currency = value.get("currency")
+            if new_currency and new_currency not in ["", "UNKNOWN"]:
+                merged_price["currency"] = new_currency
+            elif "currency" not in merged_price:
+                merged_price["currency"] = new_currency or "UNKNOWN"
 
-           merged[key] = merged_price
+            merged[key] = merged_price
         # Recursive merge for dicts
         elif isinstance(value, dict):
             merged[key] = merge_products(merged.get(key, {}), value)
@@ -61,13 +69,21 @@ def merge_products(base: dict, new: dict) -> dict:
                 elif isinstance(img, str):
                     existing_urls.add(img)
             for img in value:
-                url = img["url"] if isinstance(img, dict) and img.get("url") else img if isinstance(img, str) else None
+                url = (
+                    img["url"]
+                    if isinstance(img, dict) and img.get("url")
+                    else img
+                    if isinstance(img, str)
+                    else None
+                )
                 if url and url not in existing_urls:
                     new_images.append(img)
                     existing_urls.add(url)
             merged.setdefault(key, []).extend(new_images)
         # Replace "" or UNKNOWN with valid value
-        elif value not in ["", "UNKNOWN", 0] and (merged.get(key) in ["", "UNKNOWN", 0] or not merged.get(key)):
+        elif value not in ["", "UNKNOWN", 0] and (
+            merged.get(key) in ["", "UNKNOWN", 0] or not merged.get(key)
+        ):
             merged[key] = value
     return merged
 
@@ -110,7 +126,9 @@ def merge_product_lists(list1: list[dict], list2: list[dict]) -> list[dict]:
     return merged
 
 
-async def extract_standard(data: dict, url: str, preferred: list[str] | None = None) -> dict | list[dict] | None:
+async def extract_standard(
+    data: dict, url: str, preferred: list[str] | None = None
+) -> dict | list[dict] | None:
     """
     Combines results from multiple extractors to create the most complete and deduplicated product data possible.
     """
@@ -118,7 +136,9 @@ async def extract_standard(data: dict, url: str, preferred: list[str] | None = N
     if preferred:
         extractors = sorted(
             EXTRACTORS,
-            key=lambda e: preferred.index(e.name) if e.name in preferred else len(preferred)
+            key=lambda e: preferred.index(e.name)
+            if e.name in preferred
+            else len(preferred),
         )
 
     combined_result = None
@@ -142,8 +162,30 @@ async def extract_standard(data: dict, url: str, preferred: list[str] | None = N
             elif isinstance(combined_result, dict) and isinstance(result, list):
                 combined_result = merge_product_lists([combined_result], result)
 
-    return combined_result
+    # Fallback language detection
+    if isinstance(combined_result, dict):
+        for key in ["title", "description"]:
+            if combined_result.get(key, {}).get(
+                "language"
+            ) == "UNKNOWN" and combined_result.get(key, {}).get("text"):
+                try:
+                    lang = detect(combined_result[key]["text"])
+                    combined_result[key]["language"] = lang
+                except LangDetectException:
+                    pass  # Ignore if language cannot be detected
+    elif isinstance(combined_result, list):
+        for product in combined_result:
+            for key in ["title", "description"]:
+                if product.get(key, {}).get("language") == "UNKNOWN" and product.get(
+                    key, {}
+                ).get("text"):
+                    try:
+                        lang = detect(product[key]["text"])
+                        product[key]["language"] = lang
+                    except LangDetectException:
+                        pass  # Ignore if language cannot be detected
 
+    return combined_result
 
 
 async def single_url(url: str):
@@ -160,11 +202,14 @@ async def single_url(url: str):
         syntaxes=["json-ld", "microdata", "rdfa", "opengraph", "microformat"],
     )
 
-    result = await extract_standard(data, url, preferred=["json-ld", "microdata", "rdfa", "opengraph"])
+    result = await extract_standard(
+        data, url, preferred=["json-ld", "microdata", "rdfa", "opengraph"]
+    )
 
     print("\n✅ Final combined product result:")
     print(result)
 
+
 if __name__ == "__main__":
-    test_url = ""
+    test_url = "https://www.antixx.de/products/antiker-kinderstuhl-eiche-massivholz-besondere-form"
     asyncio.run(single_url(test_url))
