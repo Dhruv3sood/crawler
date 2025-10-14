@@ -2,4 +2,4 @@
 
 ## GitHub
 
-[![CI](https://github.com/blitzfilter/bitzfilter-data/actions/workflows/test.yml/badge.svg)](https://github.com/blitzfilter/bitzfilter-data/actions/workflows/test.yml)
+[![CI/CD](https://github.com/blitzfilter/bitzfilter-data/actions/workflows/cicd.yml/badge.svg)](https://github.com/blitzfilter/bitzfilter-data/actions/workflows/cicd.yml)
