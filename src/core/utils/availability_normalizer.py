@@ -35,6 +35,15 @@ AVAILABILITY_MAP = {
 
 
 def map_availability_to_state(availability_raw: str) -> str:
+    """
+    Maps a raw availability value (string or list) to a normalized availability state.
+
+    Parameters:
+        availability_raw (str or list): The raw availability value, which can be a string or a list of strings.
+
+    Returns:
+        str: The normalized availability state. Returns "AVAILABLE", "LISTED", "RESERVED", "SOLD", "REMOVED", or "UNKNOWN".
+    """
     # Support lists or individual values
     if isinstance(availability_raw, list) and availability_raw:
         key = normalize_availability(availability_raw[0])
