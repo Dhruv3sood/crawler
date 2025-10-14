@@ -26,7 +26,7 @@ AVAILABILITY_MAP = {
 
 
 def map_availability_to_state(availability_raw: str) -> str:
-    # Listen oder Einzelwerte unterstützen
+    # Support lists or individual values
     if isinstance(availability_raw, list) and availability_raw:
         key = normalize_availability(availability_raw[0])
     else:
