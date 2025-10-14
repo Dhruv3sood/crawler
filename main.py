@@ -7,7 +7,7 @@ import requests
 from extruct import extract as extruct_extract
 from w3lib.html import get_base_url
 from src.app.extractor import parse_schema
-from src.core.ultils.standards_extractor import extract_standard
+from src.core.utils.standards_extractor import extract_standard
 
 # --- Windows asyncio fix ---
 if sys.platform.startswith("win"):
@@ -18,7 +18,11 @@ st.set_page_config(page_title="🕸️ Web Data Extractor", page_icon="🕸️",
 st.title("🕸️ Universal Web Data Extractor")
 
 with st.container(border=True):
-    url = st.text_input("🌐 **Enter a URL**", placeholder="https://example.com/product/123", key="url_input")
+    url = st.text_input(
+        "🌐 **Enter a URL**",
+        placeholder="https://example.com/product/123",
+        key="url_input",
+    )
     strategy = st.radio(
         "🔍 Choose extraction strategy:",
         ["AI Schema (CSS)", "Standards Extractor"],
@@ -27,11 +31,13 @@ with st.container(border=True):
     )
     extract_btn = st.button("🚀 Extract", type="primary", use_container_width=True)
 
+
 def beautify_json(data):
     try:
         return json.dumps(data, indent=2, ensure_ascii=False)
     except Exception:
         return str(data)
+
 
 def display_json_sections(data: dict):
     syntaxes = []
@@ -53,9 +59,12 @@ def display_json_sections(data: dict):
         if clean_entries:
             syntaxes.append((syntax, clean_entries))
     for syntax, entries in syntaxes:
-        with st.expander(f"📦 {syntax.upper()} — {len(entries)} entries", expanded=True):
+        with st.expander(
+            f"📦 {syntax.upper()} — {len(entries)} entries", expanded=True
+        ):
             for entry in entries:
                 st.code(beautify_json(entry), language="json", line_numbers=False)
+
 
 async def extract_and_display_standards(url: str):
     headers = {
@@ -68,17 +77,27 @@ async def extract_and_display_standards(url: str):
     data = extruct_extract(
         html,
         base_url=base_url,
-        syntaxes=["microdata", "opengraph", "json-ld", "microformat", "rdfa", "dublincore"]
+        syntaxes=[
+            "microdata",
+            "opengraph",
+            "json-ld",
+            "microformat",
+            "rdfa",
+            "dublincore",
+        ],
     )
 
     # Zuerst das Endergebnis anzeigen
     st.subheader("✅ Schritt 1: Kombiniertes Endergebnis (Produkt)")
-    result = await extract_standard(data, url, preferred=["microdata", "json-ld", "rdfa", "opengraph"])
+    result = await extract_standard(
+        data, url, preferred=["microdata", "json-ld", "rdfa", "opengraph"]
+    )
     st.code(beautify_json(result), language="json")
 
     # Danach die Rohdaten pro Syntax anzeigen
     st.subheader("🔍 Schritt 2: Extrahierte Rohdaten pro Syntax")
     display_json_sections(data)
+
 
 if extract_btn:
     if not url:

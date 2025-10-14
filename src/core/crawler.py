@@ -1,12 +1,18 @@
 import asyncio
 import json
-from crawl4ai import BrowserConfig, CrawlerRunConfig, CacheMode, MemoryAdaptiveDispatcher, AsyncWebCrawler
+from crawl4ai import (
+    BrowserConfig,
+    CrawlerRunConfig,
+    CacheMode,
+    MemoryAdaptiveDispatcher,
+    AsyncWebCrawler,
+)
 from extruct import extract as extruct_extract
 from w3lib.html import get_base_url
 
-from src.core.ultils.send_items import send_items
-from src.core.ultils.sitemap_extractor import sitemap_extractor
-from src.core.ultils.standards_extractor import extract_standard
+from src.core.utils.send_items import send_items
+from src.core.utils.sitemap_extractor import sitemap_extractor
+from src.core.utils.standards_extractor import extract_standard
 
 
 async def crawl_batch(domains: list[str]) -> None:
@@ -19,7 +25,7 @@ async def crawl_batch(domains: list[str]) -> None:
             cache_mode=CacheMode.BYPASS,
             stream=False,
             check_robots_txt=True,
-            verbose=True
+            verbose=True,
         )
 
         dispatcher = MemoryAdaptiveDispatcher(
@@ -29,7 +35,9 @@ async def crawl_batch(domains: list[str]) -> None:
         )
 
         async with AsyncWebCrawler(config=browser_config) as crawler:
-            results = await crawler.arun_many(urls=urls_list, config=run_config, dispatcher=dispatcher)
+            results = await crawler.arun_many(
+                urls=urls_list, config=run_config, dispatcher=dispatcher
+            )
             list_data = []
             for result in results:
                 if result.success:
@@ -48,11 +56,20 @@ async def crawl_batch(domains: list[str]) -> None:
                 else:
                     print(f"Failed to crawl {result.url}: {result.error_message}")
 
+                await send_items(list_data)
+
             all_results[domain] = list_data
 
     with open("../../data/crawled_data.json", "w") as f:
         json.dump(all_results, f, indent=4)
-            #await send_items(list_data)
+
 
 if __name__ == "__main__":
-    asyncio.run(crawl_batch(["", ""]))
+    asyncio.run(
+        crawl_batch(
+            [
+                "https://lomax-militaria.de/original-militaria/us-ww2/ausruestung/5081/us-army-wool-virgin-blanket-aesculab-od-us-sani-decke-medics-medical-corps",
+                "",
+            ]
+        )
+    )

@@ -1,6 +1,7 @@
 from typing import Optional
 from .base import BaseExtractor
 
+
 class OpenGraphExtractor(BaseExtractor):
     name = "opengraph"
 
@@ -23,14 +24,15 @@ class OpenGraphExtractor(BaseExtractor):
             return val
 
         og_type = get_val("og:type", "").lower()
-        if "product" not in og_type:
+        if og_type != "product":
             return None
 
         # Extract price safely, normalize European decimal commas
         price_str = (
-                get_val("product:price:amount", None)
-                or get_val("og:price:amount", "0")
-        ).replace(",", ".").replace(" ", "")
+            (get_val("product:price:amount", None) or get_val("og:price:amount", "0"))
+            .replace(",", ".")
+            .replace(" ", "")
+        )
 
         try:
             price_amount = int(float(price_str) * 100)
@@ -39,19 +41,34 @@ class OpenGraphExtractor(BaseExtractor):
 
         currency = get_val("product:price:currency", "UNKNOWN")
 
-        availability = get_val("product:availability") or get_val("og:availability") or ""
+        availability = (
+            get_val("product:availability") or get_val("og:availability") or ""
+        )
 
         locale = get_val("og:locale", "")
         language = locale.split("_")[0] if locale else "UNKNOWN"
 
         if not availability:
             state = "UNKNOWN"
-        elif any(k in availability.lower() for k in ["instock", "in stock", "available"]):
+        elif any(
+            k in availability.lower() for k in ["instock", "in stock", "available"]
+        ):
             state = "AVAILABLE"
-        elif any(k in availability.lower() for k in ["soldout", "sold out", "unavailable"]):
+        elif any(
+            k in availability.lower() for k in ["soldout", "sold out", "unavailable"]
+        ):
             state = "SOLD"
-        elif any(k in availability.lower() for k in
-                 ["preorder", "pre-order", "backorder", "back-order", "in_store_only", "in store only"]):
+        elif any(
+            k in availability.lower()
+            for k in [
+                "preorder",
+                "pre-order",
+                "backorder",
+                "back-order",
+                "in_store_only",
+                "in store only",
+            ]
+        ):
             state = "RESERVED"
         else:
             state = "OUT_OF_STOCK"
@@ -60,7 +77,10 @@ class OpenGraphExtractor(BaseExtractor):
         return {
             "shopsItemId": url,
             "title": {"text": get_val("og:title", ""), "language": language},
-            "description": {"text": get_val("og:description", ""), "language": language},
+            "description": {
+                "text": get_val("og:description", ""),
+                "language": language,
+            },
             "price": {"currency": currency, "amount": price_amount},
             "state": state,
             "url": get_val("og:url", url),

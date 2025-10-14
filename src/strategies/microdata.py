@@ -1,7 +1,7 @@
 from typing import Optional
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from .base import BaseExtractor
-from ..core.ultils.availability_normalizer import map_availability_to_state
+from ..core.utils.availability_normalizer import map_availability_to_state
 
 
 class MicrodataExtractor(BaseExtractor):
@@ -14,7 +14,7 @@ class MicrodataExtractor(BaseExtractor):
                 if data.get("type", data.get("@type")) in [
                     "http://schema.org/Product",
                     "https://schema.org/Product",
-                    "http://data-vocabulary.org/Product"
+                    "http://data-vocabulary.org/Product",
                 ]:
                     products.append(data)
                 for v in data.values():
@@ -45,7 +45,11 @@ class MicrodataExtractor(BaseExtractor):
             price = offers.get("price")
             currency = offers.get("priceCurrency")
             if price is not None:
-                cents = int((Decimal(str(price)) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+                cents = int(
+                    (Decimal(str(price)) * 100).quantize(
+                        Decimal("1"), rounding=ROUND_HALF_UP
+                    )
+                )
                 price_spec["amount"] = cents
             if currency:
                 price_spec["currency"] = currency
@@ -62,8 +66,14 @@ class MicrodataExtractor(BaseExtractor):
         # Return structured product
         return {
             "shopsItemId": str(props.get("sku") or props.get("productID", url)),
-            "title": {"text": props.get("name", ""), "language": props.get("inLanguage", "UNKNOWN")},
-            "description": {"text": (props.get("description") or "UNKNOWN").strip(), "language": props.get("inLanguage", "UNKNOWN")},
+            "title": {
+                "text": props.get("name", ""),
+                "language": props.get("inLanguage", "UNKNOWN"),
+            },
+            "description": {
+                "text": (props.get("description") or "UNKNOWN").strip(),
+                "language": props.get("inLanguage", "UNKNOWN"),
+            },
             "price": price_spec,
             "state": state,
             "url": offers.get("url", props.get("url", url)),

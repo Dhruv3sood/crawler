@@ -1,5 +1,6 @@
 from .base import BaseExtractor
 
+
 class RdfaExtractor(BaseExtractor):
     name = "rdfa"
 
@@ -40,7 +41,9 @@ class RdfaExtractor(BaseExtractor):
         language = language_value[0:2] if language_value else "UNKNOWN"
 
         # Price handling
-        raw_price = get_first_value("product:price:amount") or get_first_value("product:price", "UNKNOWN")
+        raw_price = get_first_value("product:price:amount") or get_first_value(
+            "product:price", "UNKNOWN"
+        )
 
         # Handle European decimal format
         if raw_price != "UNKNOWN":

@@ -52,11 +52,13 @@ async def test_multiple_products_returns_first():
 @pytest.mark.asyncio
 async def test_basic_price_with_currency_from_offers_properties_dict():
     extractor = MicrodataExtractor()
-    data = wrap_product({
-        "sku": "A1",
-        "name": "Test",
-        "offers": offer_with_properties(price="10.00", currency="EUR"),
-    })
+    data = wrap_product(
+        {
+            "sku": "A1",
+            "name": "Test",
+            "offers": offer_with_properties(price="10.00", currency="EUR"),
+        }
+    )
     res = await extractor.extract(data, "http://fallback")
     assert res["price"]["amount"] == 1000
     assert res["price"]["currency"] == "EUR"
@@ -65,11 +67,13 @@ async def test_basic_price_with_currency_from_offers_properties_dict():
 @pytest.mark.asyncio
 async def test_price_rounding_half_up_boundary_should_be_rounded():
     extractor = MicrodataExtractor()
-    data = wrap_product({
-        "sku": "B2",
-        "name": "Test",
-        "offers": offer_with_properties(price="19.99", currency="EUR"),
-    })
+    data = wrap_product(
+        {
+            "sku": "B2",
+            "name": "Test",
+            "offers": offer_with_properties(price="19.99", currency="EUR"),
+        }
+    )
     res = await extractor.extract(data, "http://fallback")
     assert res["price"]["amount"] == 1999
 
@@ -77,11 +81,13 @@ async def test_price_rounding_half_up_boundary_should_be_rounded():
 @pytest.mark.asyncio
 async def test_price_invalid_format_results_in_zero_and_default_currency():
     extractor = MicrodataExtractor()
-    data = wrap_product({
-        "sku": "C3",
-        "name": "Test",
-        "offers": offer_with_properties(price="19,99", currency="EUR"),
-    })
+    data = wrap_product(
+        {
+            "sku": "C3",
+            "name": "Test",
+            "offers": offer_with_properties(price="19,99", currency="EUR"),
+        }
+    )
     res = await extractor.extract(data, "http://fallback")
     assert res["price"]["amount"] == 0
     assert res["price"]["currency"] == "UNKNOWN"
@@ -90,11 +96,13 @@ async def test_price_invalid_format_results_in_zero_and_default_currency():
 @pytest.mark.asyncio
 async def test_price_missing_currency_sets_amount_and_keeps_default_currency():
     extractor = MicrodataExtractor()
-    data = wrap_product({
-        "sku": "D4",
-        "name": "Test",
-        "offers": offer_with_properties(price="10.00"),
-    })
+    data = wrap_product(
+        {
+            "sku": "D4",
+            "name": "Test",
+            "offers": offer_with_properties(price="10.00"),
+        }
+    )
     res = await extractor.extract(data, "http://fallback")
     assert res["price"]["amount"] == 1000
     assert res["price"]["currency"] == "UNKNOWN"
@@ -124,11 +132,13 @@ async def test_availability_mapping(availability, expected):
         if availability is not None
         else {"type": "http://schema.org/Offer", "properties": {}}
     )
-    data = wrap_product({
-        "sku": "F6",
-        "name": "Test",
-        "offers": offers,
-    })
+    data = wrap_product(
+        {
+            "sku": "F6",
+            "name": "Test",
+            "offers": offers,
+        }
+    )
     res = await extractor.extract(data, "http://fallback")
     assert res["state"] == expected
 
@@ -136,26 +146,32 @@ async def test_availability_mapping(availability, expected):
 @pytest.mark.asyncio
 async def test_images_as_list_and_string_and_missing():
     extractor = MicrodataExtractor()
-    data1 = wrap_product({
-        "sku": "G7",
-        "name": "Test",
-        "image": ["a.jpg", "b.jpg"],
-    })
+    data1 = wrap_product(
+        {
+            "sku": "G7",
+            "name": "Test",
+            "image": ["a.jpg", "b.jpg"],
+        }
+    )
     res1 = await extractor.extract(data1, "http://fallback")
     assert res1["images"] == ["a.jpg", "b.jpg"]
 
-    data2 = wrap_product({
-        "sku": "G8",
-        "name": "Test",
-        "image": "c.jpg",
-    })
+    data2 = wrap_product(
+        {
+            "sku": "G8",
+            "name": "Test",
+            "image": "c.jpg",
+        }
+    )
     res2 = await extractor.extract(data2, "http://fallback")
     assert res2["images"] == ["c.jpg"]
 
-    data3 = wrap_product({
-        "sku": "G9",
-        "name": "Test",
-    })
+    data3 = wrap_product(
+        {
+            "sku": "G9",
+            "name": "Test",
+        }
+    )
     res3 = await extractor.extract(data3, "http://fallback")
     assert res3["images"] == []
 
@@ -163,24 +179,30 @@ async def test_images_as_list_and_string_and_missing():
 @pytest.mark.asyncio
 async def test_shops_item_id_precedence_and_defaults():
     extractor = MicrodataExtractor()
-    data1 = wrap_product({
-        "sku": "H1",
-        "productID": "PID1",
-        "name": "Test",
-    })
+    data1 = wrap_product(
+        {
+            "sku": "H1",
+            "productID": "PID1",
+            "name": "Test",
+        }
+    )
     res1 = await extractor.extract(data1, "http://fallback")
     assert res1["shopsItemId"] == "H1"
 
-    data2 = wrap_product({
-        "productID": "PID2",
-        "name": "Test",
-    })
+    data2 = wrap_product(
+        {
+            "productID": "PID2",
+            "name": "Test",
+        }
+    )
     res2 = await extractor.extract(data2, "http://fallback")
     assert res2["shopsItemId"] == "PID2"
 
-    data3 = wrap_product({
-        "name": "Test",
-    })
+    data3 = wrap_product(
+        {
+            "name": "Test",
+        }
+    )
     res3 = await extractor.extract(data3, "http://fallback")
     assert res3["shopsItemId"] == "http://fallback"
 
@@ -188,22 +210,26 @@ async def test_shops_item_id_precedence_and_defaults():
 @pytest.mark.asyncio
 async def test_title_and_description_language_and_strip():
     extractor = MicrodataExtractor()
-    data = wrap_product({
-        "sku": "I1",
-        "name": "Title",
-        "description": "  Description  ",
-        "inLanguage": "en",
-    })
+    data = wrap_product(
+        {
+            "sku": "I1",
+            "name": "Title",
+            "description": "  Description  ",
+            "inLanguage": "en",
+        }
+    )
     res = await extractor.extract(data, "http://fallback")
     assert res["title"]["text"] == "Title"
     assert res["title"]["language"] == "en"
     assert res["description"]["text"] == "Description"
     assert res["description"]["language"] == "en"
 
-    data2 = wrap_product({
-        "sku": "I2",
-        "name": "Title2",
-    })
+    data2 = wrap_product(
+        {
+            "sku": "I2",
+            "name": "Title2",
+        }
+    )
     res2 = await extractor.extract(data2, "http://fallback")
     assert res2["description"]["text"] == "UNKNOWN"
     assert res2["title"]["language"] == "UNKNOWN"
@@ -214,27 +240,33 @@ async def test_title_and_description_language_and_strip():
 async def test_url_priority_offers_over_product_over_fallback():
     extractor = MicrodataExtractor()
 
-    data1 = wrap_product({
-        "sku": "J1",
-        "name": "Test",
-        "url": "http://product-url",
-        "offers": offer_with_properties(url="http://offer-url"),
-    })
+    data1 = wrap_product(
+        {
+            "sku": "J1",
+            "name": "Test",
+            "url": "http://product-url",
+            "offers": offer_with_properties(url="http://offer-url"),
+        }
+    )
     res1 = await extractor.extract(data1, "http://fallback")
     assert res1["url"] == "http://offer-url"
 
-    data2 = wrap_product({
-        "sku": "J2",
-        "name": "Test",
-        "url": "http://product-only-url",
-    })
+    data2 = wrap_product(
+        {
+            "sku": "J2",
+            "name": "Test",
+            "url": "http://product-only-url",
+        }
+    )
     res2 = await extractor.extract(data2, "http://fallback")
     assert res2["url"] == "http://product-only-url"
 
-    data3 = wrap_product({
-        "sku": "J3",
-        "name": "Test",
-    })
+    data3 = wrap_product(
+        {
+            "sku": "J3",
+            "name": "Test",
+        }
+    )
     res3 = await extractor.extract(data3, "http://fallback")
     assert res3["url"] == "http://fallback"
 
@@ -243,23 +275,31 @@ async def test_url_priority_offers_over_product_over_fallback():
 async def test_offers_as_list_and_plain_dict():
     extractor = MicrodataExtractor()
 
-    data1 = wrap_product({
-        "sku": "K1",
-        "name": "Test",
-        "offers": [
-            offer_with_properties(price="5.00", currency="EUR", availability="http://schema.org/SoldOut"),
-            offer_with_properties(price="10.00", currency="EUR"),
-        ],
-    })
+    data1 = wrap_product(
+        {
+            "sku": "K1",
+            "name": "Test",
+            "offers": [
+                offer_with_properties(
+                    price="5.00",
+                    currency="EUR",
+                    availability="http://schema.org/SoldOut",
+                ),
+                offer_with_properties(price="10.00", currency="EUR"),
+            ],
+        }
+    )
     res1 = await extractor.extract(data1, "http://fallback")
     assert res1["price"]["amount"] == 500
     assert res1["state"] == "SOLD"
 
-    data2 = wrap_product({
-        "sku": "K2",
-        "name": "Test",
-        "offers": {"price": "7.00", "priceCurrency": "EUR"},
-    })
+    data2 = wrap_product(
+        {
+            "sku": "K2",
+            "name": "Test",
+            "offers": {"price": "7.00", "priceCurrency": "EUR"},
+        }
+    )
     res2 = await extractor.extract(data2, "http://fallback")
     assert res2["price"]["amount"] == 700
     assert res2["price"]["currency"] == "EUR"
@@ -268,11 +308,13 @@ async def test_offers_as_list_and_plain_dict():
 @pytest.mark.asyncio
 async def test_offers_invalid_type_is_handled_gracefully():
     extractor = MicrodataExtractor()
-    data = wrap_product({
-        "sku": "K3",
-        "name": "Test",
-        "offers": "invalid",
-    })
+    data = wrap_product(
+        {
+            "sku": "K3",
+            "name": "Test",
+            "offers": "invalid",
+        }
+    )
     res = await extractor.extract(data, "http://fallback")
     assert res["price"]["amount"] == 0
     assert res["price"]["currency"] == "UNKNOWN"

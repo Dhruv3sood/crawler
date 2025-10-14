@@ -6,7 +6,9 @@ from src.core.model.price import Price
 
 class Item(BaseModel):
     shopId: str = Field(..., description="Unique shop identifier (UUID)")
-    shopsItemId: str = Field(..., description="Unique item identifier within the shop (e.g., SKU, ASIN)")
+    shopsItemId: str = Field(
+        ..., description="Unique item identifier within the shop (e.g., SKU, ASIN)"
+    )
     shopName: str
     title: LocalizedText
     description: LocalizedText

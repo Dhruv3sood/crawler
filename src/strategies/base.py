@@ -1,5 +1,6 @@
 from typing import Optional
 
+
 class BaseExtractor:
     name: str = "base"
 

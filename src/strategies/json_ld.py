@@ -1,6 +1,7 @@
 from typing import Optional
 from .base import BaseExtractor
-from ..core.ultils.availability_normalizer import map_availability_to_state
+from ..core.utils.availability_normalizer import map_availability_to_state
+
 
 class JsonLDExtractor(BaseExtractor):
     name = "json-ld"
@@ -20,7 +21,8 @@ class JsonLDExtractor(BaseExtractor):
             graph = entry.get("@graph")
             if isinstance(graph, list):
                 products.extend(
-                    item for item in graph
+                    item
+                    for item in graph
                     if isinstance(item, dict) and item.get("@type") == "Product"
                 )
         if not products:
@@ -64,11 +66,17 @@ class JsonLDExtractor(BaseExtractor):
 
         return {
             # Use sku from the ProductGroup, or productGroupID, or a variant's sku if needed
-            "shopsItemId": str(product_json.get("sku") or product_json.get("productGroupID", url)),
-            "title": {"text": product_json.get("name", ""),
-                      "language": product_json.get("inLanguage", "UNKNOWN")},
-            "description": {"text": (product_json.get("description") or "UNKNOWN").strip(),
-                            "language": product_json.get("inLanguage", "UNKNOWN")},
+            "shopsItemId": str(
+                product_json.get("sku") or product_json.get("productGroupID", url)
+            ),
+            "title": {
+                "text": product_json.get("name", ""),
+                "language": product_json.get("inLanguage", "UNKNOWN"),
+            },
+            "description": {
+                "text": (product_json.get("description") or "UNKNOWN").strip(),
+                "language": product_json.get("inLanguage", "UNKNOWN"),
+            },
             "price": price_spec,
             "state": state,
             "url": product_json.get("url", offers.get("url", url)),

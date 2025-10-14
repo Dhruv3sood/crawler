@@ -24,6 +24,7 @@ AVAILABILITY_MAP = {
     "OUTOFSTOCK": "SOLD",
 }
 
+
 def map_availability_to_state(availability_raw: str) -> str:
     # Listen oder Einzelwerte unterstützen
     if isinstance(availability_raw, list) and availability_raw:
