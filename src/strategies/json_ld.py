@@ -68,11 +68,14 @@ class JsonLDExtractor(BaseExtractor):
         # Extract URLs properly from both string and dict formats
         normalized_images = []
         for img in images:
-            if isinstance(img, dict) and "url" in img:
-                normalized_images.append(img["url"])
+            if isinstance(img, dict):
+                # Prefer contentUrl, then url, @id, thumbnailUrl
+                for key in ("contentUrl", "url", "@id", "thumbnailUrl"):
+                    if key in img and isinstance(img[key], str):
+                        normalized_images.append(img[key])
+                        break
             elif isinstance(img, str):
                 normalized_images.append(img)
-
         # Remove duplicates while preserving order
         images = list(dict.fromkeys(normalized_images))
 
