@@ -59,12 +59,25 @@ class JsonLDExtractor(BaseExtractor):
 
         state = map_availability_to_state(offers.get("availability"))
 
-        # --- Images ---
         images = product_json.get("image", [])
+
+        # Normalize to list
         if not isinstance(images, list):
             images = [images] if images else []
 
-        images = list(dict.fromkeys(images))
+        # Extract URLs properly from both string and dict formats
+        normalized_images = []
+        for img in images:
+            if isinstance(img, dict):
+                # Prefer contentUrl, then url, @id, thumbnailUrl
+                for key in ("contentUrl", "url", "@id", "thumbnailUrl"):
+                    if key in img and isinstance(img[key], str):
+                        normalized_images.append(img[key])
+                        break
+            elif isinstance(img, str):
+                normalized_images.append(img)
+        # Remove duplicates while preserving order
+        images = list(dict.fromkeys(normalized_images))
 
         return {
             # Use sku from the ProductGroup, or productGroupID, or a variant's sku if needed
