@@ -68,7 +68,7 @@ if __name__ == "__main__":
     asyncio.run(
         crawl_batch(
             [
-                "https://lomax-militaria.de/original-militaria/us-ww2/ausruestung/5081/us-army-wool-virgin-blanket-aesculab-od-us-sani-decke-medics-medical-corps",
+                "",
                 "",
             ]
         )

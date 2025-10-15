@@ -211,5 +211,5 @@ async def single_url(url: str):
 
 
 if __name__ == "__main__":
-    test_url = "https://www.antixx.de/products/antiker-kinderstuhl-eiche-massivholz-besondere-form"
+    test_url = ""
     asyncio.run(single_url(test_url))
