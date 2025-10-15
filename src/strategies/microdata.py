@@ -63,6 +63,8 @@ class MicrodataExtractor(BaseExtractor):
         if not isinstance(images, list):
             images = [images] if images else []
 
+        images = list(dict.fromkeys(images))
+
         # Return structured product
         return {
             "shopsItemId": str(props.get("sku") or props.get("productID", url)),

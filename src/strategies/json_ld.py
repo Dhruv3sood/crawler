@@ -64,6 +64,8 @@ class JsonLDExtractor(BaseExtractor):
         if not isinstance(images, list):
             images = [images] if images else []
 
+        images = list(dict.fromkeys(images))
+
         return {
             # Use sku from the ProductGroup, or productGroupID, or a variant's sku if needed
             "shopsItemId": str(
