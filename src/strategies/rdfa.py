@@ -1,4 +1,5 @@
 from .base import BaseExtractor
+from ..core.utils.availability_normalizer import map_availability_to_state
 
 
 class RdfaExtractor(BaseExtractor):
@@ -33,8 +34,8 @@ class RdfaExtractor(BaseExtractor):
                 return []
             return [i["@value"] for i in items if "@value" in i]
 
-        title = get_first_value("http://ogp.me/ns#title")
-        description = get_first_value("http://ogp.me/ns#description")
+        title = get_first_value("http://ogp.me/ns#title", "UNKNOWN")
+        description = get_first_value("http://ogp.me/ns#description", "UNKNOWN")
         product_url = get_first_value("http://ogp.me/ns#url", url)
         images = get_all_values("http://ogp.me/ns#image")
         language_value = get_first_value("http://ogp.me/ns#locale", "")
@@ -45,27 +46,22 @@ class RdfaExtractor(BaseExtractor):
             "product:price", "UNKNOWN"
         )
 
-        # Handle European decimal format
+        # Handle European decimal format and remove spaces
         if raw_price != "UNKNOWN":
-            raw_price = raw_price.replace(",", ".")
+            raw_price = raw_price.replace(" ", "").replace(",", ".")
 
         currency = get_first_value("product:price:currency", "UNKNOWN")
         try:
-            price_spec = {"currency": currency, "amount": int(float(raw_price) * 100)}
+            price_spec = {
+                "currency": currency,
+                "amount": int(round(float(raw_price) * 100)),
+            }
         except ValueError:
             price_spec = {"currency": currency, "amount": 0}
 
         availability = get_first_value("product:availability", "")
-        if not availability:
-            state = "UNKNOWN"
-        elif "InStock" in availability:
-            state = "AVAILABLE"
-        elif "SoldOut" in availability:
-            state = "SOLD"
-        elif any(k in availability for k in ["PreOrder", "Backorder", "InStoreOnly"]):
-            state = "RESERVED"
-        else:
-            state = "OUT_OF_STOCK"
+
+        state = map_availability_to_state(availability)
 
         shops_item_id = product_url if product_url else "UNKNOWN"
 

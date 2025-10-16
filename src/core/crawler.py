@@ -10,7 +10,6 @@ from crawl4ai import (
 from extruct import extract as extruct_extract
 from w3lib.html import get_base_url
 
-from src.core.utils.send_items import send_items
 from src.core.utils.sitemap_extractor import sitemap_extractor
 from src.core.utils.standards_extractor import extract_standard
 
@@ -56,7 +55,7 @@ async def crawl_batch(domains: list[str]) -> None:
                 else:
                     print(f"Failed to crawl {result.url}: {result.error_message}")
 
-                await send_items(list_data)
+                # await send_items(list_data)
 
             all_results[domain] = list_data
 
