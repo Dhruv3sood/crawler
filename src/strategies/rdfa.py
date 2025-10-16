@@ -52,7 +52,10 @@ class RdfaExtractor(BaseExtractor):
 
         currency = get_first_value("product:price:currency", "UNKNOWN")
         try:
-            price_spec = {"currency": currency, "amount": int(round(float(raw_price) * 100))}
+            price_spec = {
+                "currency": currency,
+                "amount": int(round(float(raw_price) * 100)),
+            }
         except ValueError:
             price_spec = {"currency": currency, "amount": 0}
 
