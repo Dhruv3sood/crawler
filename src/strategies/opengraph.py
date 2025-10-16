@@ -65,5 +65,5 @@ class OpenGraphExtractor(BaseExtractor):
             "price": {"currency": currency, "amount": price_amount},
             "state": state,
             "url": get_val("og:url", url),
-            "images": [get_val("og:image")] if get_val("og:image") else "UNKNOWN",
+            "images": [get_val("og:image")] if get_val("og:image") else [],
         }

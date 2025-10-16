@@ -62,13 +62,8 @@ async def crawl_batch(domains: list[str]) -> None:
     with open("../../data/crawled_data.json", "w") as f:
         json.dump(all_results, f, indent=4)
 
+    print("Total number of items extracted:", sum(len(v) for v in all_results.values()))
+
 
 if __name__ == "__main__":
-    asyncio.run(
-        crawl_batch(
-            [
-                "",
-                "",
-            ]
-        )
-    )
+    asyncio.run(crawl_batch([""]))

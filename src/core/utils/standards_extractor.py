@@ -63,7 +63,14 @@ def merge_products(base: dict, new: dict) -> dict:
         elif isinstance(value, list) and key == "images":
             existing_urls = set()
             new_images = []
-            for img in merged.get(key, []):
+
+            # Ensure merged[key] is a list, not a string like "UNKNOWN"
+            existing_images = merged.get(key, [])
+            if not isinstance(existing_images, list):
+                existing_images = []
+                merged[key] = []
+
+            for img in existing_images:
                 if isinstance(img, dict) and img.get("url"):
                     existing_urls.add(img["url"])
                 elif isinstance(img, str):
@@ -165,22 +172,28 @@ async def extract_standard(
     # Fallback language detection
     if isinstance(combined_result, dict):
         for key in ["title", "description"]:
-            if combined_result.get(key, {}).get(
-                "language"
-            ) == "UNKNOWN" and combined_result.get(key, {}).get("text"):
+            text = combined_result.get(key, {}).get("text", "")
+            if (
+                combined_result.get(key, {}).get("language") == "UNKNOWN"
+                and text
+                and text != "UNKNOWN"
+            ):
                 try:
-                    lang = detect(combined_result[key]["text"])
+                    lang = detect(text)
                     combined_result[key]["language"] = lang
                 except LangDetectException:
                     pass  # Ignore if language cannot be detected
     elif isinstance(combined_result, list):
         for product in combined_result:
             for key in ["title", "description"]:
-                if product.get(key, {}).get("language") == "UNKNOWN" and product.get(
-                    key, {}
-                ).get("text"):
+                text = product.get(key, {}).get("text", "")
+                if (
+                    product.get(key, {}).get("language") == "UNKNOWN"
+                    and text
+                    and text != "UNKNOWN"
+                ):
                     try:
-                        lang = detect(product[key]["text"])
+                        lang = detect(text)
                         product[key]["language"] = lang
                     except LangDetectException:
                         pass  # Ignore if language cannot be detected

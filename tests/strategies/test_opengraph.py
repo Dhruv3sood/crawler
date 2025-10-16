@@ -386,7 +386,7 @@ async def test_image_missing_returns_unknown():
         ]
     )
     res = await extractor.extract(data, "http://fallback")
-    assert res["images"] == "UNKNOWN"
+    assert res["images"] == []
 
 
 @pytest.mark.asyncio

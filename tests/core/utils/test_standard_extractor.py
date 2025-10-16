@@ -1,5 +1,11 @@
 import pytest
-from src.core.utils.standards_extractor import extract_standard, is_valid_product
+from src.core.utils.standards_extractor import (
+    extract_standard,
+    is_valid_product,
+    merge_products,
+    are_products_equal,
+    merge_product_lists,
+)
 
 
 @pytest.mark.asyncio
@@ -157,3 +163,206 @@ async def test_extract_standard_with_generic_data(monkeypatch):
     assert (
         result["url"] == "https://example-store.test/shop/collectible-medal-set-1940s/"
     )
+
+
+@pytest.mark.asyncio
+async def test_extract_standard_returns_none_when_no_data():
+    """Test that None is returned when no valid product data exists."""
+    data = {
+        "microdata": [],
+        "json-ld": [],
+        "opengraph": [],
+        "rdfa": [],
+    }
+    result = await extract_standard(data, "http://example.com")
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_extract_standard_with_only_json_ld():
+    """Test extraction with only JSON-LD data."""
+    data = {
+        "json-ld": [
+            {
+                "@context": "https://schema.org",
+                "@type": "Product",
+                "name": "Test Product",
+                "description": "Test Description",
+                "sku": "TEST123",
+                "offers": {
+                    "@type": "Offer",
+                    "price": "99.99",
+                    "priceCurrency": "EUR",
+                    "availability": "https://schema.org/InStock",
+                },
+            }
+        ],
+    }
+    result = await extract_standard(data, "http://example.com")
+    assert result is not None
+    assert result["title"]["text"] == "Test Product"
+    assert result["price"]["amount"] == 9999
+    assert result["price"]["currency"] == "EUR"
+    assert result["state"] == "AVAILABLE"
+
+
+@pytest.mark.asyncio
+async def test_extract_standard_no_language_detection_for_unknown_text():
+    """Test that language detection is skipped when text is UNKNOWN."""
+    data = {
+        "opengraph": [
+            {
+                "properties": [
+                    ("og:type", "product"),
+                    ("product:price:amount", "50"),
+                    ("product:price:currency", "EUR"),
+                ]
+            }
+        ],
+    }
+    result = await extract_standard(data, "http://example.com")
+    assert result is not None
+    # Language should remain UNKNOWN, not be detected as random language like "sw"
+    assert result["title"]["language"] == "UNKNOWN"
+    assert result["description"]["language"] == "UNKNOWN"
+
+
+def test_is_valid_product_with_title():
+    """Test that a product with a title is considered valid."""
+    product = {"title": {"text": "Test Product"}, "price": {"amount": 0}}
+    assert is_valid_product(product) is True
+
+
+def test_is_valid_product_with_price():
+    """Test that a product with a price > 0 is considered valid."""
+    product = {"title": {"text": ""}, "price": {"amount": 100}}
+    assert is_valid_product(product) is True
+
+
+def test_is_valid_product_invalid():
+    """Test that a product without title and price is invalid."""
+    product = {"title": {"text": ""}, "price": {"amount": 0}}
+    assert is_valid_product(product) is False
+
+
+def test_is_valid_product_none():
+    """Test that None is invalid."""
+    assert is_valid_product(None) is False
+
+
+def test_merge_products_basic():
+    """Test basic product merging."""
+    base = {
+        "title": {"text": "Product A", "language": "en"},
+        "price": {"amount": 100, "currency": "EUR"},
+    }
+    new = {
+        "description": {"text": "New description", "language": "en"},
+        "state": "AVAILABLE",
+    }
+    merged = merge_products(base, new)
+    assert merged["title"]["text"] == "Product A"
+    assert merged["description"]["text"] == "New description"
+    assert merged["price"]["amount"] == 100
+    assert merged["state"] == "AVAILABLE"
+
+
+def test_merge_products_price_override():
+    """Test that valid price from new product overrides zero price."""
+    base = {"price": {"amount": 0, "currency": "EUR"}}
+    new = {"price": {"amount": 500, "currency": "USD"}}
+    merged = merge_products(base, new)
+    assert merged["price"]["amount"] == 500
+    assert merged["price"]["currency"] == "USD"
+
+
+def test_merge_products_shopsitemid_prefers_non_url():
+    """Test that non-URL shopsItemId is preferred over URL."""
+    base = {"shopsItemId": "http://example.com/product"}
+    new = {"shopsItemId": "SKU123"}
+    merged = merge_products(base, new)
+    assert merged["shopsItemId"] == "SKU123"
+
+
+def test_merge_products_images_deduplication():
+    """Test that images are deduplicated during merge."""
+    base = {"images": ["http://example.com/image1.jpg"]}
+    new = {
+        "images": [
+            "http://example.com/image1.jpg",  # Duplicate
+            "http://example.com/image2.jpg",  # New
+        ]
+    }
+    merged = merge_products(base, new)
+    assert len(merged["images"]) == 2
+    assert "http://example.com/image1.jpg" in merged["images"]
+    assert "http://example.com/image2.jpg" in merged["images"]
+
+
+def test_merge_products_replaces_unknown_values():
+    """Test that UNKNOWN values are replaced with valid values."""
+    base = {"currency": "UNKNOWN", "state": "UNKNOWN"}
+    new = {"currency": "EUR", "state": "AVAILABLE"}
+    merged = merge_products(base, new)
+    assert merged["currency"] == "EUR"
+    assert merged["state"] == "AVAILABLE"
+
+
+def test_merge_products_handles_string_images():
+    """Test that merge handles images that are strings like 'UNKNOWN'."""
+    base = {"images": "UNKNOWN"}
+    new = {"images": ["http://example.com/image.jpg"]}
+    merged = merge_products(base, new)
+    assert isinstance(merged["images"], list)
+    assert "http://example.com/image.jpg" in merged["images"]
+
+
+def test_are_products_equal_by_url():
+    """Test product equality check by URL."""
+    p1 = {"url": "http://example.com/product1"}
+    p2 = {"url": "http://example.com/product1"}
+    assert are_products_equal(p1, p2) is True
+
+
+def test_are_products_equal_by_title():
+    """Test product equality check by title."""
+    p1 = {"title": {"text": "Product Name"}}
+    p2 = {"title": {"text": "Product Name"}}
+    assert are_products_equal(p1, p2) is True
+
+
+def test_are_products_not_equal():
+    """Test that different products are not equal."""
+    p1 = {"title": {"text": "Product A"}}
+    p2 = {"title": {"text": "Product B"}}
+    assert are_products_equal(p1, p2) is False
+
+
+def test_merge_product_lists_merges_identical():
+    """Test that identical products in lists are merged."""
+    list1 = [
+        {
+            "title": {"text": "Product A"},
+            "price": {"amount": 100, "currency": "EUR"},
+        }
+    ]
+    list2 = [
+        {
+            "title": {"text": "Product A"},
+            "description": {"text": "Description"},
+            "state": "AVAILABLE",
+        }
+    ]
+    merged = merge_product_lists(list1, list2)
+    assert len(merged) == 1
+    assert merged[0]["title"]["text"] == "Product A"
+    assert merged[0]["price"]["amount"] == 100
+    assert merged[0]["description"]["text"] == "Description"
+
+
+def test_merge_product_lists_adds_unique():
+    """Test that unique products are added to the list."""
+    list1 = [{"title": {"text": "Product A"}}]
+    list2 = [{"title": {"text": "Product B"}}]
+    merged = merge_product_lists(list1, list2)
+    assert len(merged) == 2
