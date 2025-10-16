@@ -10,6 +10,7 @@ from crawl4ai import (
 from extruct import extract as extruct_extract
 from w3lib.html import get_base_url
 
+from src.core.utils.send_items import send_items
 from src.core.utils.sitemap_extractor import sitemap_extractor
 from src.core.utils.standards_extractor import extract_standard
 
@@ -62,6 +63,7 @@ async def crawl_batch(domains: list[str]) -> None:
     with open("../../data/crawled_data.json", "w") as f:
         json.dump(all_results, f, indent=4)
 
+    print("Total number of items extracted:", sum(len(v) for v in all_results.values()))
 
 if __name__ == "__main__":
     asyncio.run(
