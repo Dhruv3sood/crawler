@@ -12,7 +12,6 @@ from w3lib.html import get_base_url
 
 from src.core.utils.sitemap_extractor import sitemap_extractor
 from src.core.utils.standards_extractor import extract_standard
-from src.core.utils.deduplication import deduplicate_products_across_domains
 
 
 async def crawl_batch(domains: list[str]) -> None:
@@ -60,14 +59,10 @@ async def crawl_batch(domains: list[str]) -> None:
 
             all_results[domain] = list_data
 
-    # Cross-domain deduplication: choose product with most information per identity
-    deduped = deduplicate_products_across_domains(all_results)
-
-    with open("../../data/crawled_data_deduped.json", "w") as f:
-        json.dump(deduped, f, indent=4)
+    with open("../../data/crawled_data.json", "w") as f:
+        json.dump(all_results, f, indent=4)
 
     print("Total number of items extracted:", sum(len(v) for v in all_results.values()))
-    print("Total number of items after deduplication:", len(deduped))
 
 
 if __name__ == "__main__":
