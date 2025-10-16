@@ -276,9 +276,9 @@ async def test_availability_various_states():
             ]
         )
         res = await extractor.extract(data, "http://fallback")
-        assert (
-            res["state"] == expected_state
-        ), f"Failed for availability: {availability}"
+        assert res["state"] == expected_state, (
+            f"Failed for availability: {availability}"
+        )
 
 
 @pytest.mark.asyncio
