@@ -4,9 +4,8 @@ from src.core.utils.standards_extractor import extract_standard, is_valid_produc
 
 @pytest.mark.asyncio
 async def test_extract_standard_with_generic_data(monkeypatch):
-    """Test extract_standard using anonymized, slightly modified structured data."""
+    """Test the extract_standard function with a realistic mix of structured data syntaxes."""
 
-    # --- Anonymized mock data ---
     data = {
         "microdata": [
             {
@@ -113,13 +112,12 @@ async def test_extract_standard_with_generic_data(monkeypatch):
                 "http://ogp.me/ns#image": [
                     {"@value": "https://example-store.test/media/medal-set.jpg"}
                 ],
-                "product:price": [{"@value": "275.00"}],  # <-- add
-                "product:price:currency": [{"@value": "EUR"}],  # <-- add
+                "product:price": [{"@value": "275.00"}],
+                "product:price:currency": [{"@value": "EUR"}],
             }
         ],
     }
 
-    # --- Execute the function under test ---
     result = await extract_standard(
         data,
         "https://example-store.test/shop/collectible-medal-set-1940s/",

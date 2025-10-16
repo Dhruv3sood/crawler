@@ -1,5 +1,6 @@
 from typing import Optional
 from .base import BaseExtractor
+from ..core.utils.availability_normalizer import map_availability_to_state
 
 
 class OpenGraphExtractor(BaseExtractor):
@@ -29,13 +30,13 @@ class OpenGraphExtractor(BaseExtractor):
 
         # Extract price safely, normalize European decimal commas
         price_str = (
-            (get_val("product:price:amount", None) or get_val("og:price:amount", "0"))
+            (get_val("product:price:amount", 0) or get_val("og:price:amount", "0"))
             .replace(",", ".")
             .replace(" ", "")
         )
 
         try:
-            price_amount = int(float(price_str) * 100)
+            price_amount = int(round(float(price_str) * 100))
         except (ValueError, TypeError):
             price_amount = "UNKNOWN"
 
@@ -48,37 +49,14 @@ class OpenGraphExtractor(BaseExtractor):
         locale = get_val("og:locale", "")
         language = locale.split("_")[0] if locale else "UNKNOWN"
 
-        if not availability:
-            state = "UNKNOWN"
-        elif any(
-            k in availability.lower() for k in ["instock", "in stock", "available"]
-        ):
-            state = "AVAILABLE"
-        elif any(
-            k in availability.lower() for k in ["soldout", "sold out", "unavailable"]
-        ):
-            state = "SOLD"
-        elif any(
-            k in availability.lower()
-            for k in [
-                "preorder",
-                "pre-order",
-                "backorder",
-                "back-order",
-                "in_store_only",
-                "in store only",
-            ]
-        ):
-            state = "RESERVED"
-        else:
-            state = "OUT_OF_STOCK"
+        state = map_availability_to_state(availability)
 
         # Build result
         return {
             "shopsItemId": url,
-            "title": {"text": get_val("og:title", ""), "language": language},
+            "title": {"text": get_val("og:title", "UNKNOWN"), "language": language},
             "description": {
-                "text": get_val("og:description", ""),
+                "text": get_val("og:description", "UNKNOWN"),
                 "language": language,
             },
             "price": {"currency": currency, "amount": price_amount},

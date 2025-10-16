@@ -56,7 +56,7 @@ async def crawl_batch(domains: list[str]) -> None:
                 else:
                     print(f"Failed to crawl {result.url}: {result.error_message}")
 
-                await send_items(list_data)
+                #await send_items(list_data)
 
             all_results[domain] = list_data
 
