@@ -7,11 +7,6 @@ def wrap_opengraph(properties):
     return {"opengraph": [{"properties": properties}]}
 
 
-def wrap_opengraph_dict(og_dict):
-    """Helper for OpenGraph data already formatted as dict."""
-    return {"opengraph": og_dict}
-
-
 @pytest.mark.asyncio
 async def test_returns_none_when_no_opengraph_data():
     """Test that None is returned when opengraph data is missing."""

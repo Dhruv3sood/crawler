@@ -29,18 +29,21 @@ class OpenGraphExtractor(BaseExtractor):
             return None
 
         # Extract price safely, normalize European decimal commas
-        price_str = (
-            (get_val("product:price:amount", 0) or get_val("og:price:amount", "0"))
-            .replace(",", ".")
-            .replace(" ", "")
-        )
+        price_str = get_val("product:price:amount") or get_val("og:price:amount")
+
+        if not price_str:
+            price_str = "0"
+
+        price_str = price_str.replace(",", ".").replace(" ", "")
 
         try:
             price_amount = int(round(float(price_str) * 100))
         except (ValueError, TypeError):
             price_amount = "UNKNOWN"
 
-        currency = get_val("product:price:currency", "UNKNOWN")
+        currency = get_val("product:price:currency") or get_val(
+            "og:price:currency", "UNKNOWN"
+        )
 
         availability = (
             get_val("product:availability") or get_val("og:availability") or ""
